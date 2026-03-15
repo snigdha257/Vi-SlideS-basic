@@ -5,8 +5,12 @@ import bcrypt from 'bcrypt';
 
 //user registration----------
 export const registerUser = async (req: Request, res: Response) => {
- const {email,password}:{email:string;password:string}=req.body;
+ const {email,password,name,role}:{email:string;password:string;name:string;role:string}=req.body;
  try{
+    if(!email || !password || !name || !role){
+        return res.status(400).json({message:"All fields are required"});
+    }
+    
     const existingUser=await User.findOne({email});
     if(existingUser){
        return res.status(400).json({message:"User already exists"});
@@ -15,7 +19,9 @@ export const registerUser = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
         email:email,
-        password:hashedPassword
+        password:hashedPassword,
+        name:name,
+        role:role
     });
     await newUser.save();
  
@@ -41,13 +47,18 @@ export const loginUser = async (req: Request, res: Response) => {
   
   
     const token=jwt.sign(
-        {email:user.email},
+        {email:user.email, name:user.name, role:user.role},
         process.env.JWT_SECRET as string,
         {expiresIn:"1h"}
     );
       res.json({
         message:"Login successful",
-        token: token
+        token: token,
+        user: {
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
     });
 }catch(error){          
     console.error("Login error:",error);

@@ -1,0 +1,19 @@
+.teacher {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f8f9fa;
+  padding: 20px;
+}
+
+.teacher h1 {
+  color: #333;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.teacher p {
+  color: #666;
+  font-size: 1.1rem;
+}
