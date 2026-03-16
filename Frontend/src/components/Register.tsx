@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
+import { GoogleLogin } from "@react-oauth/google";
 import "../styles/auth.css";
 
 export default function Register() {
@@ -33,7 +34,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await authService.register(email, password,name,role);
+      await authService.register(email, password, name, role);
       setSuccess("Registration successful! You can now log in.");
 
       setTimeout(() => {
@@ -46,6 +47,24 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      if (credentialResponse.credential) {
+        // Send the role along with the Google token
+        const response = await authService.googleLogin(credentialResponse.credential, role);
+        if (response.token && response.user) {
+          if (response.user.role === "teacher") {
+            navigate("/teacher");
+          } else {
+            navigate("/student");
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Google Registration Failed");
+    }
+  };
+
   return (
     <div className="auth-container">
       <div className="auth-form">
@@ -55,7 +74,7 @@ export default function Register() {
         {success && <div className="success-message">{success}</div>}
 
         <form onSubmit={handleSubmit}>
-        <div className="form-group">
+          <div className="form-group">
             <label>Name</label>
             <input
               type="text"
@@ -82,7 +101,6 @@ export default function Register() {
               onChange={(e) => setRole(e.target.value)}
               required
             >
-              <option value="">Select Role</option>
               <option value="student">Student</option>
               <option value="teacher">Teacher</option>
             </select>
@@ -113,6 +131,22 @@ export default function Register() {
             {loading ? "Registering..." : "Register"}
           </button>
         </form>
+
+        <div style={{ margin: "1.5rem 0", textAlign: "center", position: "relative" }}>
+          <span style={{ background: "white", padding: "0 10px", color: "#ccc", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0, 0, 0, 0.1)", zIndex: 0 }}></div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google Signup Failed")}
+            theme="filled_blue"
+            shape="pill"
+            width="250"
+            text="signup_with"
+          />
+        </div>
 
         <p className="auth-link">
           Already have an account? <Link to="/login">Login here</Link>
