@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
+import { GoogleLogin } from "@react-oauth/google";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -34,6 +35,23 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      if (credentialResponse.credential) {
+        const response = await authService.googleLogin(credentialResponse.credential);
+        if (response.token && response.user) {
+          if (response.user.role === "teacher") {
+            navigate("/teacher");
+          } else {
+            navigate("/student");
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Google Login Failed");
+    }
+  };
+
   return (
     <div className="auth-container">
       <div className="auth-form">
@@ -64,6 +82,21 @@ export default function Login() {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        <div style={{ margin: "1.5rem 0", textAlign: "center", position: "relative" }}>
+          <span style={{ background: "white", padding: "0 10px", color: "#ccc", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0, 0, 0, 0.1)", zIndex: 0 }}></div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google Login Failed")}
+            theme="filled_blue"
+            shape="pill"
+            width="250"
+          />
+        </div>
         <p className="auth-link">
           Don't have an account? <Link to="/register">Register here</Link>
         </p>

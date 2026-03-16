@@ -28,6 +28,21 @@
 }
 
 /* Custom Scrollbar for auth form */
+.auth-form::-webkit-scrollbar {
+  width: 6px;
+}
+.auth-form::-webkit-scrollbar-track {
+  background: transparent;
+}
+.auth-form::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 10px;
+}
+.auth-form::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+/* Custom Scrollbar for auth form */
 
 
 .auth-form h2 {

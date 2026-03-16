@@ -35,6 +35,16 @@ export const authService = {
     return data;
   },
 
+  googleLogin: async (token: string, role?: string) => {
+    const data = await request(
+      api.post("/google-login", { token, role }),
+      "Google Login failed"
+    );
+
+    if (data.token) localStorage.setItem("token", data.token);
+    return data;
+  },
+
   logout: () => localStorage.removeItem("token"),
 
   getProfile: () =>
