@@ -72,8 +72,9 @@
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   font-size: 0.95rem;
+  color: #1a202c !important; /* Force darker color for visibility */
   transition: all 0.3s ease;
-  background: #f7fafc;
+  background: #fdfdfd; /* Slightly brighter white */
   box-sizing: border-box;
 }
 
@@ -86,7 +87,7 @@
 }
 
 .form-group input::placeholder {
-  color: #a0aec0;
+  color: #b2becd; /* Darker placeholder */
   font-style: normal;
 }
 
