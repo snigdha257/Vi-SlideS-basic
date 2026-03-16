@@ -2,25 +2,23 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
 import { GoogleLogin } from "@react-oauth/google";
+import toast from "react-hot-toast";
 import "../styles/auth.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
       const response = await authService.login(email, password);
-      console.log("Login response:", response); // Debug log
       if (response.token && response.user) {
-        console.log("User role:", response.user.role); // Debug log
+        toast.success(`Welcome back, ${response.user.name || 'User'}!`);
         if (response.user.role === "teacher") {
           navigate("/teacher");
         } else {
@@ -28,8 +26,7 @@ export default function Login() {
         }
       }
     } catch (err: any) {
-      console.error("Login error:", err); // Debug log
-      setError(err.message || "Login Failed");
+      toast.error(err.message || "Login Failed");
     } finally {
       setLoading(false);
     }
@@ -40,6 +37,7 @@ export default function Login() {
       if (credentialResponse.credential) {
         const response = await authService.googleLogin(credentialResponse.credential);
         if (response.token && response.user) {
+          toast.success("Google Login Successful!");
           if (response.user.role === "teacher") {
             navigate("/teacher");
           } else {
@@ -48,7 +46,7 @@ export default function Login() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Google Login Failed");
+      toast.error(err.message || "Google Login Failed");
     }
   };
 
@@ -56,7 +54,6 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-form">
         <h2>Login</h2>
-        {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email</label>
@@ -91,7 +88,7 @@ export default function Login() {
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => setError("Google Login Failed")}
+            onError={() => toast.error("Google Login Failed")}
             theme="filled_blue"
             shape="pill"
             width="250"
