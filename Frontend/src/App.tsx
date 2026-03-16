@@ -4,6 +4,7 @@ import Register from "./components/Register";
 import Profile from "./components/Profile";
 import Student from "./components/student";
 import Teacher from "./components/teacher";
+import Session from "./components/Session";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/student" element={<Student />} />
         <Route path="/teacher" element={<Teacher />} />
+        <Route path="/session/:sessionCode" element={<Session />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </BrowserRouter>
