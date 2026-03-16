@@ -1,19 +1,44 @@
 .teacher {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   min-height: 100vh;
-  background: #f8f9fa;
-  padding: 20px;
+  padding: 40px;
+  background: #00050a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.teacher h1 {
-  color: #333;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+.session-card {
+  margin-top: 30px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  text-align: center;
 }
 
-.teacher p {
-  color: #666;
-  font-size: 1.1rem;
+.session-input {
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+  border: 1px solid #0a0a0a;
+  border-radius: 10px;
+  font-size: 16px;
+  outline: none;
+}
+
+.session-button {
+  margin-top: 16px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: rgb(12, 12, 12);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.session-button:hover {
+  background: #1e40af;
 }
