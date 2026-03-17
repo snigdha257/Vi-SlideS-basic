@@ -62,9 +62,6 @@ export default function Teacher() {
 
       {/* HERO */}
       <div className="t-hero">
-        <div className="t-hero-label">
-          <LayoutDashboard size={16} /> Dashboard
-        </div>
         <h1>Teacher Dashboard</h1>
         <p>Create and manage your interactive presentation sessions.</p>
       </div>
@@ -74,7 +71,6 @@ export default function Teacher() {
         {/* Create Session */}
         <div className="t-card">
           <div className="t-card-header">
-            <div className="t-card-icon indigo"><Plus size={22} /></div>
             <div>
               <h2>New Session</h2>
               <p>Start a live session for students</p>
@@ -98,7 +94,6 @@ export default function Teacher() {
         {/* Active Sessions */}
         <div className="t-card">
           <div className="t-card-header">
-            <div className="t-card-icon pink"><LayoutDashboard size={22} /></div>
             <div>
               <h2>Active Sessions</h2>
               <p>{activeSessions.length} session{activeSessions.length !== 1 ? "s" : ""} running</p>

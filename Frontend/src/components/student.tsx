@@ -45,9 +45,6 @@ export default function Student() {
         <div className="s-join-card">
           {/* TOP */}
           <div className="s-card-top">
-            <div className="s-icon-ring">
-              <Users size={40} color="#10b981" />
-            </div>
             <h1>Join a Session</h1>
             <p>Enter the 6-character code your teacher shared to join the live session.</p>
           </div>

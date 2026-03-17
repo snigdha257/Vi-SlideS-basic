@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
 import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
+import { Loader2 } from "lucide-react";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -18,6 +19,7 @@ export default function Login() {
     try {
       const response = await authService.login(email, password);
       if (response.token && response.user) {
+        localStorage.setItem("studentInfo", JSON.stringify(response.user));
         toast.success(`Welcome back, ${response.user.name || 'User'}!`);
         if (response.user.role === "teacher") {
           navigate("/teacher");
@@ -37,6 +39,7 @@ export default function Login() {
       if (credentialResponse.credential) {
         const response = await authService.googleLogin(credentialResponse.credential);
         if (response.token && response.user) {
+          localStorage.setItem("studentInfo", JSON.stringify(response.user));
           toast.success("Google Login Successful!");
           if (response.user.role === "teacher") {
             navigate("/teacher");
@@ -81,7 +84,7 @@ export default function Login() {
         </form>
 
         <div style={{ margin: "1.5rem 0", textAlign: "center", position: "relative" }}>
-          <span style={{ background: "white", padding: "0 10px", color: "#ccc", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
+          <span style={{ background: "#d6d8e0ff", padding: "0 10px", color: "#1d0951ee", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0, 0, 0, 0.1)", zIndex: 0 }}></div>
         </div>
 

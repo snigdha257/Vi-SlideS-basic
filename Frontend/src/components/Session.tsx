@@ -4,12 +4,18 @@ import { MonitorPlay, ArrowLeft, XCircle, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import "../styles/session.css";
 
+type Student={
+  id:string;
+  name:string;
+  joinedAt:string;
+}
 type SessionItem = {
   code: string;
   name: string;
   createdBy: string;
   createdAt: string;
   status?: "active" | "ended";
+  students?: Student[];
 };
 
 export default function Session() {
@@ -17,7 +23,7 @@ export default function Session() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const role = searchParams.get("role");
-
+  const [students, setStudents] = useState<Student[]>([]);
   const [session, setSession] = useState<SessionItem | null>(null);
   const [ended, setEnded] = useState(false);
 
@@ -27,6 +33,7 @@ export default function Session() {
     if (!found) { setSession(null); return; }
     if (found.status === "ended") { setEnded(true); }
     setSession(found);
+    setStudents(found.students || []);
   }, [sessionCode]);
 
   // Poll for session-ended signal (for student)
@@ -43,6 +50,87 @@ export default function Session() {
     return () => clearInterval(interval);
   }, [sessionCode, role]);
 
+  const handleStudentJoin = () => {
+    // TODO: Implement student join logic
+    if(role!=="student"){
+      return;
+    }
+    const studentInfo=JSON.parse(localStorage.getItem("studentInfo") || "{}");
+    if(!studentInfo.name){
+      return;
+    }
+    const studentname=studentInfo.name || studentInfo.email?.split("@")[0] || "unknown";
+    console.log("Student joining session:", studentname);
+
+    const newStudent: Student = {
+      id: Date.now().toString(),
+      name: studentname,
+      joinedAt: new Date().toISOString(),
+    };
+
+    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+    const updatedSessions = sessions.map((s) => {
+     if(s.code===sessionCode){
+      return {
+        ...s,
+        students: [...(s.students || []), newStudent]
+      };
+     }
+     return s;
+    });
+    localStorage.setItem("sessions", JSON.stringify(updatedSessions));
+    setStudents(prev=>[...prev, newStudent]);
+    toast.success("Student joined session");
+    
+  };
+  useEffect(()=>{
+    if(role==="student" && session){
+      setStudents(session.students || []);
+      const studentInfo=JSON.parse(localStorage.getItem("studentInfo") || "{}");
+      const studentname=studentInfo.name || studentInfo.email?.split("@")[0] || "unknown";
+      const alreadyJoined=session.students?.some((s)=>s.name===studentname);
+      if(alreadyJoined){
+        return;
+      }
+      handleStudentJoin();
+    }
+  },[role, session]);
+  useEffect(()=>{
+    if(role!=="teacher"){
+      return;
+    }
+    const interval= setInterval(() => {
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const currentSession= sessions.find(s=>s.code===sessionCode);
+      if(currentSession){
+        console.log("Current session:", currentSession.students);
+        setStudents(currentSession.students || []);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  },[sessionCode,role]);
+
+  const handleStudentLeave=()=>{
+    if(role!=="student"){
+      return;
+    }
+    const studentInfo=JSON.parse(localStorage.getItem("studentInfo") || "{}");
+    const studentname=studentInfo.name || studentInfo.email?.split("@")[0] || "unknown";
+    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+    const updatedSessions = sessions.map((s) => {
+      if(s.code===sessionCode){
+        return {
+          ...s,
+          students: s.students?.filter((student)=>student.name!==studentname) || []
+        };
+      }
+      return s;
+    });
+    localStorage.setItem("sessions", JSON.stringify(updatedSessions));
+    setStudents(prev=>prev.filter((student)=>student.name!==studentname));
+    toast.success("Student left session");
+    navigate("/student");
+  }
   const handleEndSession = () => {
     toast((t) => (
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -131,7 +219,7 @@ export default function Session() {
       <header className="session-topbar">
         <div className="session-topbar-left">
           <div className="session-brand">
-            <MonitorPlay size={22} color="#6366f1" /> Vi-SlideS
+            Vi-SlideS
           </div>
           <div className="session-divider" />
           <span className="session-name">{session.name}</span>
@@ -150,10 +238,17 @@ export default function Session() {
               <XCircle size={16} /> End Session
             </button>
           )}
-
-          <button className="btn-back" onClick={() => navigate(role === "teacher" ? "/teacher" : "/student")}>
-            <ArrowLeft size={16} /> {role === "teacher" ? "Dashboard" : "Leave"}
+          {role==="teacher" && (
+            <button className="btn-back" onClick={() => navigate("/teacher")}>
+            <ArrowLeft size={16} /> Dashboard
           </button>
+          )}
+          {role==="student" && (
+            <button className="btn-end-session" onClick={handleStudentLeave}>
+              <XCircle size={16} /> Leave Session
+            </button>
+          )}
+          
         </div>
       </header>
 
@@ -171,6 +266,72 @@ export default function Session() {
           </p>
 
           <div className="session-info-grid">
+            {role === "teacher" && (
+              <div style={{ width: "100%", marginTop: "20px" }}>
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "8px", 
+                  marginBottom: "12px",
+                  color: "#94a3b8",
+                  fontSize: "0.9rem",
+                  fontWeight: 600
+                }}>
+                  <Users size={18} />
+                  Active Students ({students.length})
+                </div>
+                
+                <div style={{ 
+                  display: "grid", 
+                  gap: "8px", 
+                  maxHeight: "200px", 
+                  overflowY: "auto",
+                  padding: "4px"
+                }}>
+                  {students.length === 0 ? (
+                    <div style={{
+                      textAlign: "center",
+                      color: "#64748b",
+                      fontSize: "0.85rem",
+                      padding: "20px",
+                      background: "#0f172a",
+                      border: "1px solid #1f2937",
+                      borderRadius: "8px"
+                    }}>
+                      No students have joined yet
+                    </div>
+                  ) : (
+                    students.map(student => (
+                      <div key={student.id} style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        background: "#0f172a",
+                        border: "1px solid #1f2937",
+                        borderRadius: "8px",
+                        fontSize: "0.9rem"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            background: "#22c55e"
+                          }} />
+                          <span style={{ color: "#f1f5f9", fontWeight: 500 }}>
+                            {student.name}
+                          </span>
+                        </div>
+                        <span style={{ color: "#64748b", fontSize: "0.75rem" }}>
+                          {new Date(student.joinedAt).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
             <div className="session-info-chip">
               <span className="chip-label">Session Code</span>
               <span className="chip-value">{session.code}</span>
@@ -185,11 +346,6 @@ export default function Session() {
             </div>
           </div>
 
-          {role === "student" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748b", marginTop: 8 }}>
-              <Users size={18} /> Connected to session
-            </div>
-          )}
         </div>
       </div>
     </div>

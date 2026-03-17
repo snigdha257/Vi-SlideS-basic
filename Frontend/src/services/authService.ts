@@ -45,7 +45,10 @@ export const authService = {
     return data;
   },
 
-  logout: () => localStorage.removeItem("token"),
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("studentInfo");
+  },
 
   getProfile: () =>
     request(api.get("/profile"), "Failed to fetch profile"),

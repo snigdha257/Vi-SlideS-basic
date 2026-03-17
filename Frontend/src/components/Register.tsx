@@ -128,7 +128,7 @@ export default function Register() {
         </form>
 
         <div style={{ margin: "1.5rem 0", textAlign: "center", position: "relative" }}>
-          <span style={{ background: "white", padding: "0 10px", color: "#ccc", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
+          <span style={{ background: "#d6d8e0ff", padding: "0 10px", color: "#1d0951ee", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0, 0, 0, 0.1)", zIndex: 0 }}></div>
         </div>
 
