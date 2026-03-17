@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MonitorPlay, ArrowLeft, XCircle, Users } from "lucide-react";
+import { MonitorPlay, ArrowLeft, XCircle, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
+import { useSocket } from '../hooks/useSocket';
 import "../styles/session.css";
 
 type Student={
@@ -9,6 +10,14 @@ type Student={
   name:string;
   joinedAt:string;
 }
+
+type Question = {
+  id: string;
+  studentName: string;
+  question: string;
+  timestamp: string;
+  answer?: string;
+};
 type SessionItem = {
   code: string;
   name: string;
@@ -27,6 +36,70 @@ export default function Session() {
   const [session, setSession] = useState<SessionItem | null>(null);
   const [ended, setEnded] = useState(false);
 
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [answerText, setAnswerText] = useState('');
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // Get user info
+  const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
+    
+  // Initialize socket
+  const { socket, connected } = useSocket(sessionCode || '', role || '', userInfo.name || '');
+    
+  // Socket event handlers
+  useEffect(() => {
+      if (!socket) return;
+    
+      socket.on('load-questions', (loadedQuestions: Question[]) => {
+        setQuestions(loadedQuestions);
+      });
+    
+      socket.on('new-question', (question: Question) => {
+        setQuestions(prev => [...prev, question]);
+      });
+    
+      socket.on('new-answer', (answeredQuestion: Question) => {
+        setQuestions(prev => prev.map(q => 
+          q.id === answeredQuestion.id ? answeredQuestion : q
+        ));
+      });
+    }, [socket]);
+    
+  const handleSendQuestion = () => {
+      if (!newQuestion.trim() || !socket) return;
+      
+      socket.emit('send-question', {
+        sessionCode,
+        question: newQuestion.trim()
+      });
+      setNewQuestion('');
+  };
+    
+  const handleSendAnswer = (questionId: string) => {
+      if (!answerText.trim() || !socket) return;
+      
+      socket.emit('send-answer', {
+        sessionCode,
+        questionId,
+        answer: answerText.trim()
+      });
+      setAnswerText('');
+  };
+
+  // Slide navigation
+  const nextSlide = () => {
+    if (currentSlideIndex < questions.length - 1) {
+      setCurrentSlideIndex(currentSlideIndex + 1);
+    }
+  };
+
+  const prevSlide = () => {
+    if (currentSlideIndex > 0) {
+      setCurrentSlideIndex(currentSlideIndex - 1);
+    }
+  };
+
   useEffect(() => {
     const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
     const found = sessions.find((s) => s.code === sessionCode);
@@ -36,7 +109,7 @@ export default function Session() {
     setStudents(found.students || []);
   }, [sessionCode]);
 
-  // Poll for session-ended signal (for student)
+  // session-ended signal (for student)
   useEffect(() => {
     if (role !== "student") return;
     const interval = setInterval(() => {
@@ -51,7 +124,6 @@ export default function Session() {
   }, [sessionCode, role]);
 
   const handleStudentJoin = () => {
-    // TODO: Implement student join logic
     if(role!=="student"){
       return;
     }
@@ -81,20 +153,24 @@ export default function Session() {
     localStorage.setItem("sessions", JSON.stringify(updatedSessions));
     setStudents(prev=>[...prev, newStudent]);
     toast.success("Student joined session");
-    
   };
   useEffect(()=>{
-    if(role==="student" && session){
-      setStudents(session.students || []);
+    if(role==="student" && sessionCode){
       const studentInfo=JSON.parse(localStorage.getItem("studentInfo") || "{}");
       const studentname=studentInfo.name || studentInfo.email?.split("@")[0] || "unknown";
-      const alreadyJoined=session.students?.some((s)=>s.name===studentname);
-      if(alreadyJoined){
-        return;
+      
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const currentSession = sessions.find(s => s.code === sessionCode);
+      
+      if(currentSession){
+        setStudents(currentSession.students || []);
+        const alreadyJoined=currentSession?.students?.some((s)=>s.name===studentname);
+        if(!alreadyJoined){
+          handleStudentJoin();
+        }
       }
-      handleStudentJoin();
     }
-  },[role, session]);
+  },[role, sessionCode]);
   useEffect(()=>{
     if(role!=="teacher"){
       return;
@@ -213,6 +289,8 @@ export default function Session() {
     );
   }
 
+  const currentQuestion = questions[currentSlideIndex];
+
   return (
     <div className="session-page">
       {/* TOP BAR */}
@@ -255,16 +333,230 @@ export default function Session() {
       {/* STAGE */}
       <div className="session-body">
         <div className="session-stage">
-          <div className="session-stage-icon">
-            <MonitorPlay size={48} color="#818cf8" />
-          </div>
-          <h2>{role === "teacher" ? "Your session is live!" : "You've joined the session!"}</h2>
-          <p>
-            {role === "teacher"
-              ? "Students can join using the code below. Your slides will appear here when you start presenting."
-              : "Waiting for the teacher to start presenting..."}
-          </p>
+          {/* LIVE Q&A SLIDES */}
+          <div style={{ width: "100%", background: "#111827", border: "1px solid #1f2937", borderRadius: "14px", padding: "20px", marginBottom: "20px" }}>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px", 
+              marginBottom: "16px",
+              color: "#94a3b8",
+              fontSize: "1rem",
+              fontWeight: 600
+            }}>
+              <div style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: connected ? "#22c55e" : "#64748b"
+              }} />
+              Live Q&A {connected ? "(Connected)" : "(Connecting...)"}
+              {questions.length > 0 && (
+                <span style={{ marginLeft: "auto", fontSize: "0.9rem" }}>
+                  {currentSlideIndex + 1} / {questions.length}
+                </span>
+              )}
+            </div>
 
+            {/* STUDENT QUESTION INPUT */}
+            {role === "student" && (
+              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <input
+                  type="text"
+                  value={newQuestion}
+                  onChange={(e) => setNewQuestion(e.target.value)}
+                  placeholder="Type your question here..."
+                  style={{
+                    flex: 1,
+                    padding: "10px 14px",
+                    background: "#0f172a",
+                    border: "1px solid #1f2937",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    fontSize: "0.9rem"
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendQuestion()}
+                />
+                <button
+                  onClick={handleSendQuestion}
+                  style={{
+                    padding: "10px 16px",
+                    background: "#6366f1",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  Send Question
+                </button>
+              </div>
+            )}
+
+            {/* SLIDE VIEW */}
+            {questions.length === 0 ? (
+              <div style={{
+                textAlign: "center",
+                color: "#64748b",
+                padding: "40px 20px",
+                fontSize: "0.95rem"
+              }}>
+                <MonitorPlay size={48} color="#818cf8" style={{ marginBottom: "16px" }} />
+                <div>No questions yet. Be the first to ask!</div>
+              </div>
+            ) : (
+              <div>
+                {/* SLIDE CONTENT */}
+                <div style={{
+                  background: "#0f172a",
+                  border: "1px solid #1f2937",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  minHeight: "200px",
+                  position: "relative"
+                }}>
+                  <div style={{ 
+                    color: "#64748b", 
+                    fontSize: "0.75rem", 
+                    marginBottom: "12px",
+                    display: "flex",
+                    justifyContent: "space-between"
+                  }}>
+                    <span>{currentQuestion.studentName} • {new Date(currentQuestion.timestamp).toLocaleTimeString()}</span>
+                    <span>Question {currentSlideIndex + 1}</span>
+                  </div>
+                  
+                  <div style={{ 
+                    color: "#f1f5f9", 
+                    fontSize: "1.1rem", 
+                    fontWeight: 500,
+                    marginBottom: "20px",
+                    lineHeight: "1.5"
+                  }}>
+                    {currentQuestion.question}
+                  </div>
+
+                  {/* ANSWER SECTION */}
+                  {currentQuestion.answer ? (
+                    <div style={{
+                      background: "#1e2e1e",
+                      border: "1px solid #2e3e2e",
+                      borderRadius: "8px",
+                      padding: "16px",
+                      marginTop: "16px"
+                    }}>
+                      <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: "8px" }}>
+                        Teacher • {new Date(currentQuestion.timestamp).toLocaleTimeString()}
+                      </div>
+                      <div style={{ color: "#6ee7b7", fontSize: "1rem", lineHeight: "1.5" }}>
+                        {currentQuestion.answer}
+                      </div>
+                    </div>
+                  ) : role === "teacher" && (
+                    <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
+                      <input
+                        type="text"
+                        value={answerText}
+                        onChange={(e) => setAnswerText(e.target.value)}
+                        placeholder="Type your answer..."
+                        style={{
+                          flex: 1,
+                          padding: "10px 14px",
+                          background: "#1e293b",
+                          border: "1px solid #334155",
+                          borderRadius: "8px",
+                          color: "#f1f5f9",
+                          fontSize: "0.9rem"
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSendAnswer(currentQuestion.id)}
+                        style={{
+                          padding: "10px 16px",
+                          background: "#10b981",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "0.9rem",
+                          fontWeight: 600,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* SLIDE NAVIGATION */}
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  marginTop: "16px"
+                }}>
+                  <button
+                    onClick={prevSlide}
+                    disabled={currentSlideIndex === 0}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 12px",
+                      background: currentSlideIndex === 0 ? "#1f2937" : "#3730a3",
+                      color: currentSlideIndex === 0 ? "#64748b" : "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      cursor: currentSlideIndex === 0 ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    <ChevronLeft size={16} /> Previous
+                  </button>
+
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    {questions.map((_, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: index === currentSlideIndex ? "#6366f1" : "#1f2937",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => setCurrentSlideIndex(index)}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={nextSlide}
+                    disabled={currentSlideIndex === questions.length - 1}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 12px",
+                      background: currentSlideIndex === questions.length - 1 ? "#1f2937" : "#3730a3",
+                      color: currentSlideIndex === questions.length - 1 ? "#64748b" : "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      cursor: currentSlideIndex === questions.length - 1 ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    Next <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+            {/* Session Info Grid */}
           <div className="session-info-grid">
             {role === "teacher" && (
               <div style={{ width: "100%", marginTop: "20px" }}>
