@@ -197,7 +197,7 @@ const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null
 )}
         <div className="card">
         <div className="card-title">
-        <button onClick={() => setShowSidebar(true)}>☰</button>
+        <button onClick={() => setShowSidebar(true)} className="card-btn">☰</button>
          Live Q&A {connected ? "🟢" : "⚪"}
          </div>
          

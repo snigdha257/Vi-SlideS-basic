@@ -354,6 +354,13 @@
   z-index: 999;
 }
 .sidebar-item.active {
-  background: #e0e7ff;
+ 
   border-left: 4px solid #4f46e5;
+}
+.card-btn{
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  size: 1.2rem; 
+
 }
