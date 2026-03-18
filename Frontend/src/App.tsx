@@ -6,6 +6,7 @@ import Profile from "./components/Profile";
 import Student from "./components/student";
 import Teacher from "./components/teacher";
 import Session from "./components/Session";
+import AuthSuccess from "./components/AuthSuccess";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/student" element={<Student />} />
         <Route path="/teacher" element={<Teacher />} />
         <Route path="/session/:sessionCode" element={<Session />} />
+        <Route path="/auth/success" element={<AuthSuccess />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </BrowserRouter>
