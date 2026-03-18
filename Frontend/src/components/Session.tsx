@@ -28,6 +28,7 @@ type SessionItem = {
 };
 
 export default function Session() {
+  const [showSidebar, setShowSidebar] = useState(false);
   const { sessionCode } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function Session() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [answerText, setAnswerText] = useState('');
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState<number | null>(null);
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
@@ -149,7 +150,7 @@ export default function Session() {
   if (!session) return <div className="center-msg">Session not found</div>;
   if (ended) return <div className="center-msg">Session ended</div>;
 
-  const current = questions[currentSlideIndex];
+const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null;
 
   return (
     <div className="session-page">
@@ -175,18 +176,41 @@ export default function Session() {
         </header>
 
         {/* Q&A */}
+        <div className={`qa-sidebar ${showSidebar ? "open" : ""}`}>
+  <h3>Questions</h3>
+  {questions.map((q, index) => (
+    <div
+      key={q.id}
+     className={`sidebar-item ${currentSlideIndex === index ? "active" : ""}`}
+      onClick={() => {
+        setCurrentSlideIndex(index);
+        setShowSidebar(false);
+      }}
+    >
+      <strong>{q.studentName}</strong>
+      <p>{q.question}</p>
+    </div>
+  ))}
+</div>
+{showSidebar && (
+  <div className="overlay" onClick={() => setShowSidebar(false)} />
+)}
         <div className="card">
-          <div className="card-title">
-            Live Q&A {connected ? "🟢" : "⚪"}
-          </div>
+        <div className="card-title">
+        <button onClick={() => setShowSidebar(true)} className="card-btn">☰</button>
+         Live Q&A {connected ? "🟢" : "⚪"}
+         </div>
+         
 
-          {questions.length === 0 ? (
-            <div className="qa-empty">No questions yet</div>
-          ) : (
-            <div className="qa-box">
-              <div className="question">
-                <span className="student">{current.studentName}</span>
-                <p>{current.question}</p>
+         {questions.length === 0 ? (
+       <div className="qa-empty">No questions yet</div>
+     ) : current === null ? (
+       <div className="qa-empty">Select a question from sidebar</div>
+         ) : (
+          <div className="qa-box">
+             <div className="question" key={current.id}>
+               <span className="student">{current?.studentName}</span>
+               <p>{current?.question}</p>
 
                 {current.answer ? (
                   <div className="answer">{current.answer}</div>
@@ -207,10 +231,23 @@ export default function Session() {
 
               {/* NAV */}
               <div className="nav-btns">
-                <button onClick={() => setCurrentSlideIndex(i => Math.max(0, i - 1))}>Prev</button>
-                <button onClick={() => setCurrentSlideIndex(i => Math.min(questions.length - 1, i + 1))}>Next</button>
-              </div>
-            </div>
+                   <button disabled={currentSlideIndex === null}  onClick={() =>  setCurrentSlideIndex(i =>
+                       i === null ? 0 : Math.max(0, i - 1) )
+                      }
+                      >Prev
+              </button>
+              <button
+    disabled={currentSlideIndex === null}
+    onClick={() =>
+      setCurrentSlideIndex(i =>
+        i === null ? 0 : Math.min(questions.length - 1, i + 1)
+      )
+    }
+  >
+    Next
+  </button>
+</div>
+ </div>
           )}
 
           {role === "student" && (
