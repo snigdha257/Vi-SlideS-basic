@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
 import { GoogleLogin } from "@react-oauth/google";
+import toast from "react-hot-toast";
 import "../styles/auth.css";
 
 export default function Register() {
@@ -9,8 +10,6 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("student");
 
@@ -18,16 +17,14 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters");
       return;
     }
 
@@ -35,13 +32,13 @@ export default function Register() {
 
     try {
       await authService.register(email, password, name, role);
-      setSuccess("Registration successful! You can now log in.");
+      toast.success("Registration successful! You can now log in.");
 
       setTimeout(() => {
         navigate("/login");
       }, 2000);
     } catch (err: any) {
-      setError(err.message || "Registration Failed");
+      toast.error(err.message || "Registration Failed");
     } finally {
       setLoading(false);
     }
@@ -53,6 +50,7 @@ export default function Register() {
         // Send the role along with the Google token
         const response = await authService.googleLogin(credentialResponse.credential, role);
         if (response.token && response.user) {
+          toast.success(`Welcome, ${response.user.name || 'User'}!`);
           if (response.user.role === "teacher") {
             navigate("/teacher");
           } else {
@@ -61,7 +59,7 @@ export default function Register() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Google Registration Failed");
+      toast.error(err.message || "Google Registration Failed");
     }
   };
 
@@ -69,9 +67,6 @@ export default function Register() {
     <div className="auth-container">
       <div className="auth-form">
         <h2>Register</h2>
-
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -133,14 +128,14 @@ export default function Register() {
         </form>
 
         <div style={{ margin: "1.5rem 0", textAlign: "center", position: "relative" }}>
-          <span style={{ background: "white", padding: "0 10px", color: "#ccc", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
+          <span style={{ background: "#d6d8e0ff", padding: "0 10px", color: "#1d0951ee", position: "relative", zIndex: 1, borderRadius: "4px" }}>OR</span>
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0, 0, 0, 0.1)", zIndex: 0 }}></div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => setError("Google Signup Failed")}
+            onError={() => toast.error("Google Signup Failed")}
             theme="filled_blue"
             shape="pill"
             width="250"
