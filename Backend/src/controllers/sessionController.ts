@@ -5,13 +5,6 @@ import PDFDocument from "pdfkit";
 export const getSessionSummary = async (req: any, res: any) => {
   try {
     const { sessionId } = req.params;
-
-    // ❌ REMOVE ObjectId validation (IMPORTANT)
-    // if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-    //   return res.status(400).json({ message: "Invalid session ID" });
-    // }
-
-    // ✅ FIND BY session CODE instead of _id
    const session = await Session.findOne({ code: sessionId })
   .populate("students")
   .populate("questions");
@@ -41,30 +34,22 @@ export const getSessionSummary = async (req: any, res: any) => {
 export const downloadSessionPDF = async (req: any, res: any) => {
   try {
     const { sessionId } = req.params;
-
-    // 🔥 Get session from DB
+    //get session from db
   const session = await Session.findOne({ code: sessionId })
   .populate("students");
 
 if (!session) {
   return res.status(404).json({ message: "Session not found" });
 }
-
 const doc = new PDFDocument();
-
 res.setHeader("Content-Type", "application/pdf");
 res.setHeader(
   "Content-Disposition",
   `attachment; filename=session-${sessionId}.pdf`
 );
-
 doc.pipe(res);
-
-// TITLE
 doc.fontSize(20).text("Session Summary", { align: "center" });
 doc.moveDown();
-
-// BASIC INFO
 doc.fontSize(14).text(`Session Code: ${session.code}`);
 doc.text(`Total Students: ${session.students?.length || 0}`);
 doc.moveDown();
@@ -96,4 +81,57 @@ doc.end();
     error: error.message
   });
 }
+};
+export const joinSession = async (req: any, res: any) => {
+  try {
+    const { code, name, email } = req.body;
+
+    const session = await Session.findOne({ code });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // push student
+    session.students.push({
+      name,
+      email,
+      joinedAt: new Date()
+    });
+
+    await session.save();
+
+    res.json({ message: "Joined session successfully" });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export const leaveSession = async (req: any, res: any) => {
+  try {
+    const { code, email } = req.body;
+
+    const session = await Session.findOne({ code });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // find student by email
+    const student = session.students.find((s: any) => s.email === email);
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // set leave time
+    student.leftAt = new Date();
+
+    await session.save();
+
+    res.json({ message: "Session ended for student" });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
 };

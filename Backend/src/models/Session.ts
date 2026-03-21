@@ -7,13 +7,11 @@ const sessionSchema = new mongoose.Schema({
     {
       name: String,
       email: String,
-      joinedAt: String,
-      leftAt: String
+     joinedAt: { type: Date, default: Date.now },
+leftAt: { type: Date, default: null }      
     }
   ],
-
-  questions: [{ question: String }],
-
+  questions: [{ question: String,studentName: String, timestamp: Date }],
   duration: String
 });
 

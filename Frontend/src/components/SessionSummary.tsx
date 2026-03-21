@@ -2,46 +2,69 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
+import autoTable  from "jspdf-autotable";
 
 const SessionSummary = () => {
   const [data, setData] = useState<any>(null);
   const { sessionId } = useParams();
   const navigate = useNavigate();
+    const downloadQuestionsPDF = () => {
+  const doc = new jsPDF();
 
+  doc.text("Questions Report", 14, 15);
 
+  if (!data.questions || data.questions.length === 0) {
+    doc.text("No questions asked", 14, 30);
+    doc.save(`questions-${sessionId}.pdf`);
+    return;
+  }
+
+  const tableData = data.questions.map((q: any) => [
+    q.studentName || "Unknown",
+    q.question,
+    q.timestamp
+      ? new Date(q.timestamp).toLocaleString()
+      : "N/A"
+  ]);
+
+  autoTable(doc, {
+    startY: 30,
+    head: [["Student", "Question", "Time"]],
+    body: tableData,
+  });
+
+  doc.save(`questions-${sessionId}.pdf`);
+};
+    
 useEffect(() => {
   if (!sessionId) return;
 
-  const sessions = JSON.parse(localStorage.getItem("sessions") || "[]");
+  const fetchData = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/session/${sessionId}`
+      );
 
-  const found = sessions.find((s: any) => s.code === sessionId);
+      const session = res.data;
 
-  if (found) {
-    // 🔥 CALCULATE QUESTIONS
-    const totalQuestions = found.questions?.length || 0;
+      const totalQuestions = session.questions?.length || 0;
+      const totalStudents = session.students?.length || 0;
 
-    // 🔥 CALCULATE DURATION
-    let duration = "0 min";
-
-    if (found.startTime && found.endTime) {
-      const start = new Date(found.startTime);
-      const end = new Date(found.endTime);
-
-      const diff = Math.floor((end.getTime() - start.getTime()) / 60000);
-      duration = `${diff} min`;
+      setData({
+        totalQuestions,
+        totalStudents,
+        duration: session.duration || "N/A",
+        students: session.students || [],
+        questions:session.questions || []
+      });
+    console.log("Questions:", session.questions);
+    } catch (err) {
+      console.log("Error fetching session", err);
     }
+  };
 
-    setData({
-      totalQuestions,
-      totalStudents: found.students?.length || 0,
-      duration,
-      students: found.students || []
-    });
-  } else {
-    console.log("Session not found in localStorage");
-  }
+  fetchData();
 }, [sessionId]);
-  // ✅ FIX HERE
   if (!data) {
     return <div style={{ padding: "20px" }}>⏳ Loading summary...</div>;
   }
@@ -80,7 +103,9 @@ useEffect(() => {
         ) : (
           <ul>
             {data.students.map((s: any, index: number) => (
-              <li key={index}>{s.name}</li>
+             <li key={index}>
+                 {s.name}
+                      </li>
             ))}
           </ul>
         )}
@@ -91,26 +116,37 @@ useEffect(() => {
           onClick={() => {
   const doc = new jsPDF();
 
-  doc.text("Session Summary", 20, 20);
-  doc.text(`Total Students: ${data.totalStudents}`, 20, 40);
-  doc.text(`Total Questions: ${data.totalQuestions}`, 20, 50);
-  doc.text(`Duration: ${data.duration}`, 20, 60);
+  doc.text("Session Summary", 14, 15);
 
-  let y = 80;
-  doc.text("Attendance:", 20, y);
+  doc.text(`Total Students: ${data.totalStudents}`, 14, 25);
+  doc.text(`Total Questions: ${data.totalQuestions}`, 14, 32);
+  doc.text(`Duration: ${data.duration}`, 14, 39);
 
-  data.students.forEach((s: any, i: number) => {
-    y += 10;
-    doc.text(`${i + 1}. ${s.name}`, 20, y);
+  // 👉 Create table data
+  const tableData = data.students.map((s: any) => [
+    s.name,
+    s.joinedAt
+      ? new Date(s.joinedAt).toLocaleString()
+      : "N/A",
+    s.leftAt
+      ? new Date(s.leftAt).toLocaleString()
+      : "Active"
+  ]);
+
+  // 👉 Table
+  autoTable(doc, {
+    startY: 50,
+    head: [["Name", "Join Time", "Leave Time"]],
+    body: tableData,
   });
 
   doc.save(`session-${sessionId}.pdf`);
-}}
-          style={btnStyle}
-        >
+}}>
           Download PDF
         </button>
-
+         <button onClick={downloadQuestionsPDF} style={btnStyle}>
+                      Download Questions
+         </button>
         <button
           onClick={() => navigate("/teacher")}
           style={{ ...btnStyle, backgroundColor: "gray" }}
@@ -121,7 +157,7 @@ useEffect(() => {
     </div>
   );
 };
-
+// CSS
 const cardStyle = {
   flex: 1,
   padding: "20px",

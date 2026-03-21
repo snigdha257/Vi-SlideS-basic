@@ -1,6 +1,6 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-
+import Session from "./models/Session";
 interface Question {
   id: string;
   studentName: string;
@@ -27,10 +27,10 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async(socket) => {
     console.log('User connected:', socket.id);
 
-    const { sessionCode, role, userName } = socket.handshake.query;
+    const { sessionCode, role, userName } = socket.handshake.query as any;
 
     if (!sessionCode) {
       socket.disconnect();
@@ -44,6 +44,26 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         students: [],
         isPaused: false
       };
+      if (role === 'teacher') {
+    try {
+      const existing = await Session.findOne({ code: sessionCode });
+
+      if (!existing) {
+        await Session.create({
+          code: sessionCode,
+          students: [],
+          questions: [],
+          duration: "0"
+        });
+
+        console.log("✅ Session created in DB");
+      }
+
+    } catch (error) {
+      console.log("DB ERROR:", error);
+    }
+  }
+
     }
 
     // Join session room
@@ -51,37 +71,76 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     console.log(`${role} ${userName} joined session ${sessionCode}`);
 
     // Add student to active students list
-    if (role === 'student' && userName) {
-      if (!activeSessions[sessionCode as string].students.includes(userName as string)) {
-        activeSessions[sessionCode as string].students.push(userName as string);
-      }
+    // Add student to active students list + SAVE TO DB
+if (role === 'student' && userName) {
+
+  if (!activeSessions[sessionCode as string].students.includes(userName as string)) {
+    activeSessions[sessionCode as string].students.push(userName as string);
+  }
+  try {
+    const session = await Session.findOne({ code: sessionCode as string });
+
+    if (session) {
+      session.students.push({
+        name: userName,
+        email: `${userName}@mail.com`, // temporary email
+        joinedAt: new Date()
+      });
+
+      await session.save();
+
+      console.log(" Student saved in DB");
+    } else {
+      console.log("Session not found in DB");
     }
 
+  } catch (error) {
+    console.log("DB ERROR:", error);
+  }
+}
     // Send existing questions and pause state to new user
     socket.emit('load-questions', activeSessions[sessionCode as string].questions);
     socket.emit('session-paused-toggled', activeSessions[sessionCode as string].isPaused);
 
     // Handle new question
-    socket.on('send-question', (data: { sessionCode: string; question: string }) => {
-      const session = activeSessions[data.sessionCode];
-      if (!session || session.isPaused) {
-        return;
+   socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
+  const session = activeSessions[data.sessionCode];
+  if (!session || session.isPaused) {
+    return;
+  }
+
+  const newQuestion: Question = {
+    id: Date.now().toString(),
+    studentName: userName as string,
+    question: data.question,
+    timestamp: new Date().toISOString()
+  };
+
+  session.questions.push(newQuestion);
+
+  // for DB, we only save question text, student name and timestamp. Answer will be added later when teacher answers
+  try {
+    await Session.updateOne(
+      { code: data.sessionCode },
+      {
+        $push: {
+          questions: {
+            question: data.question,
+            studentName: userName,
+            timestamp: new Date()
+          }
+        }
       }
+    );
 
-      const newQuestion: Question = {
-        id: Date.now().toString(),
-        studentName: userName as string,
-        question: data.question,
-        timestamp: new Date().toISOString()
-      };
+    console.log(" Question saved in DB");
+  } catch (err) {
+    console.log("DB ERROR:", err);
+  }
 
-      session.questions.push(newQuestion);
-
-      // Broadcast to all in session
-      io.to(data.sessionCode).emit('new-question', newQuestion);
-      console.log(`New question in ${data.sessionCode}:`, newQuestion);
-    });
-
+  // Broadcast
+  io.to(data.sessionCode).emit('new-question', newQuestion);
+});
     // Handle answer
     socket.on('send-answer', (data: { sessionCode: string; questionId: string; answer: string }) => {
       const questionIndex = activeSessions[data.sessionCode].questions.findIndex(
@@ -118,17 +177,40 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+    socket.on('disconnect', async () => {
+  console.log('User disconnected:', socket.id);
 
-      // Remove student from active list
-      if (role === 'student' && userName && activeSessions[sessionCode as string]) {
-        const index = activeSessions[sessionCode as string].students.indexOf(userName as string);
-        if (index > -1) {
-          activeSessions[sessionCode as string].students.splice(index, 1);
+  if (role === 'student' && userName && activeSessions[sessionCode as string]) {
+
+    const index = activeSessions[sessionCode as string].students.indexOf(userName as string);
+
+    if (index > -1) {
+      activeSessions[sessionCode as string].students.splice(index, 1);
+    }
+
+    //  UPDATE LEAVE TIME IN DB
+    try {
+      const session = await Session.findOne({ code: sessionCode });
+
+      if (session) {
+
+        const student = session.students.find(
+          (s: any) => s.name === userName
+        );
+
+        if (student) {
+          student.leftAt = new Date();
+          await session.save();
+
+          console.log("✅ Leave time updated in DB");
         }
       }
-    });
+
+    } catch (error) {
+      console.log("DB ERROR:", error);
+    }
+  }
+});
   });
 
   return { io, httpServer };
