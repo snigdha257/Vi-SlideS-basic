@@ -23,7 +23,8 @@ router.post("/create-session", authenticateToken, async (req: any, res: any) => 
       code,
       name,
       createdBy: req.user.email,
-      status: "active"
+      status: "active",
+      startTime: new Date()// Set start time when session is created
     });
 
     await newSession.save();
@@ -41,12 +42,21 @@ router.post("/create-session", authenticateToken, async (req: any, res: any) => 
 router.get("/session/:code", async (req: any, res: any) => {
   try {
     const { code } = req.params;
+    console.log(`Fetching session ${code} from DB`);
 
     const session = await Session.findOne({ code });
 
     if (!session) {
+      console.log(`Session ${code} not found in DB`);
       return res.status(404).json({ message: "Session not found" });
     }
+
+    console.log(`Session ${code} found:`, {
+      questions: session.questions?.length || 0,
+      students: session.students?.length || 0,
+      duration: session.duration,
+      status: session.status
+    });
 
     res.status(200).json({
       message: "Session found",

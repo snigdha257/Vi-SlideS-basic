@@ -78,6 +78,7 @@ const { socket, connected } = useSocket(
   socket.on('student-left', (studentName: string) => {
     toast.error(`${studentName} left the session`);
   });
+  //update-students listener added to update students list in real-time
   socket.on('update-students', (studentList: string[]) => {
     setStudents(studentList.map(name => ({
       id: name,
@@ -109,7 +110,7 @@ const { socket, connected } = useSocket(
     socket.off('new-answer');
     socket.off('student-joined');
     socket.off('student-left');
-    socket.off('update-students');
+    socket.off('update-students');//added off for update-students
     socket.off('session-ended');
     socket.off('session-paused-toggled');
   };
@@ -120,7 +121,7 @@ const { socket, connected } = useSocket(
 
     const fetchSession = async () => {
       try {
-        // Try to fetch from backend first
+        // Try to fetch from backend database first
         const response = await fetch(`http://localhost:5000/session/${sessionCode}`, {
           method: "GET",
           headers: {
@@ -164,7 +165,7 @@ const { socket, connected } = useSocket(
 
   // ACTIONS
   const handleSendQuestion = () => {
-    if (!newQuestion.trim() || !socket || isPaused) return;
+    if (!newQuestion.trim() || !socket || isPaused) return;//added isPaused check to prevent sending questions when session is paused
 
     socket.emit('send-question', {
       sessionCode,
@@ -219,7 +220,7 @@ const handleStudentLeave = () => {
     );
     localStorage.setItem("sessions", JSON.stringify(updated));
     setEnded(true);
-    navigate(role === "teacher" ? "/teacher" : "/student");
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
   };
 
   const handleTogglePause = () => {

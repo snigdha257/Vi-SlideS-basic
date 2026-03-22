@@ -1,5 +1,41 @@
 import mongoose from "mongoose";
 
+const questionSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true
+  },
+  studentName: {
+    type: String,
+    required: true
+  },
+  question: {
+    type: String,
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    required: true
+  },
+  answer: {
+    type: String
+  }
+});
+
+const studentSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  joinedAt: {
+    type: Date,
+    default: Date.now
+  },
+  leftAt: {
+    type: Date
+  }
+});
+
 const sessionSchema = new mongoose.Schema({
   code: {
     type: String,
@@ -23,6 +59,17 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     enum: ["active", "ended"],
     default: "active"
+  },
+  questions: [questionSchema],
+  students: [studentSchema],
+  startTime: {
+    type: Date
+  },
+  endTime: {
+    type: Date
+  },
+  duration: {
+    type: String
   }
 });
 
