@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import toast from "react-hot-toast";
 import { useSocket } from '../hooks/useSocket';
 import "../styles/session.css";
 
@@ -43,75 +44,128 @@ export default function Session() {
   const [newQuestion, setNewQuestion] = useState('');
   const [answerText, setAnswerText] = useState('');
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
-  const { socket, connected } = useSocket(
-    sessionCode || '',
-    role || '',
-    userInfo.name || ''
-  );
+const name =
+  userInfo.name ||
+  userInfo.email?.split("@")[0] ||
+  localStorage.getItem("name") ||
+  "Student";
+
+const { socket, connected } = useSocket(
+  sessionCode || '',
+  role || '',
+  name,
+  userInfo.email
+);
 
   // SOCKET
   useEffect(() => {
-    if (!socket) return;
+  if (!socket) return;
 
-    socket.on('load-questions', setQuestions);
-    socket.on('new-question', (q: Question) =>
-      setQuestions(prev => [...prev, q])
-    );
-    socket.on('new-answer', (q: Question) =>
-      setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
-    );
-  }, [socket]);
+  socket.on('load-questions', setQuestions);
+  socket.on('new-question', (q: Question) =>
+    setQuestions(prev => [...prev, q])
+  );
+  socket.on('new-answer', (q: Question) =>
+    setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
+  );
+  socket.on('student-joined', (studentName: string) => {
+    toast.success(`${studentName} joined the session`);
+  });
+  socket.on('student-left', (studentName: string) => {
+    toast.error(`${studentName} left the session`);
+  });
+  //update-students listener added to update students list in real-time
+  socket.on('update-students', (studentList: string[]) => {
+    setStudents(studentList.map(name => ({
+      id: name,
+      name: name,
+      joinedAt: new Date().toISOString()
+    })));
+  });
+  socket.on('session-ended', () => {
+    setEnded(true);
+    toast.error('Session has been ended by the teacher');
+    if(role === 'student') {
+      setTimeout(() => {
+        navigate('/student');
+      }, 2000);
+    }
+  });
+  socket.on('session-paused-toggled', (paused: boolean) => {
+    setIsPaused(paused);
+    if (paused) {
+      toast.error('Session has been paused');
+    } else {
+      toast.success('Session has been resumed');
+    }
+  });
 
-  // LOAD SESSION
+  return () => {
+    socket.off('load-questions');
+    socket.off('new-question');
+    socket.off('new-answer');
+    socket.off('student-joined');
+    socket.off('student-left');
+    socket.off('update-students');//added off for update-students
+    socket.off('session-ended');
+    socket.off('session-paused-toggled');
+  };
+}, [socket]);
+  // AUTO JOIN & LOAD SESSION
   useEffect(() => {
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const found = sessions.find(s => s.code === sessionCode);
-    if (!found) return setSession(null);
-    if (found.status === "ended") setEnded(true);
+    if (!sessionCode) return;
 
-    setSession(found);
-    setStudents(found.students || []);
+    const fetchSession = async () => {
+      try {
+        // Try to fetch from backend database first
+        const response = await fetch(`http://localhost:5000/session/${sessionCode}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSession(data.session);
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching session from backend:", error);
+      }
+
+      // Fallback to localStorage
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const current = sessions.find(s => s.code === sessionCode);
+
+      if (current) {
+        setSession(current);
+      }
+    };
+
+    fetchSession();
   }, [sessionCode]);
 
-  // AUTO JOIN
+  // Handle student joining (via socket)
   useEffect(() => {
-    if (role !== "student" || !sessionCode) return;
+    if (!session || !sessionCode || role !== "student") return;
 
     const info = JSON.parse(localStorage.getItem("studentInfo") || "{}");
     const name = info.name || info.email?.split("@")[0];
 
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const current = sessions.find(s => s.code === sessionCode);
+    if (!name) return;
 
-    if (!current) return;
-
-    setStudents(current.students || []);
-
-    const exists = current.students?.some(s => s.name === name);
-    if (!exists) {
-      const newStudent: Student = {
-        id: Date.now().toString(),
-        name,
-        joinedAt: new Date().toISOString()
-      };
-
-      const updated = sessions.map(s =>
-        s.code === sessionCode
-          ? { ...s, students: [...(s.students || []), newStudent] }
-          : s
-      );
-
-      localStorage.setItem("sessions", JSON.stringify(updated));
-      setStudents(prev => [...prev, newStudent]);
-    }
-  }, [role, sessionCode]);
+    // Note: Student list is now fully managed by socket events
+    // The 'update-students' event will update the students state
+  }, [session, sessionCode, role]);
 
   // ACTIONS
   const handleSendQuestion = () => {
-    if (!newQuestion.trim() || !socket) return;
+    if (!newQuestion.trim() || !socket || isPaused) return;//added isPaused check to prevent sending questions when session is paused
 
     socket.emit('send-question', {
       sessionCode,
@@ -133,24 +187,52 @@ export default function Session() {
     setAnswerText('');
   };
 
-  const handleStudentLeave = () => navigate("/student");
+  // Update handleStudentLeave in Session.tsx:
+const handleStudentLeave = () => {
+  if (socket && role === "student") {
+    socket.emit('student-leave', { sessionCode });
+  }
+  navigate("/student");
+};
 
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
+    if (socket && role === "teacher") {
+      socket.emit('end-session', { sessionCode });
+      
+      // Also update backend
+      try {
+        await fetch(`http://localhost:5000/session/${sessionCode}/end`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          }
+        });
+      } catch (error) {
+        console.error("Error ending session in backend:", error);
+      }
+    }
+
+    // Update localStorage backup
     const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-
     const updated = sessions.map(s =>
       s.code === sessionCode ? { ...s, status: "ended" } : s
     );
-
     localStorage.setItem("sessions", JSON.stringify(updated));
     setEnded(true);
-    navigate(role === "teacher" ? "/teacher" : "/student");
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
+  };
+
+  const handleTogglePause = () => {
+    if (socket && role === "teacher") {
+      socket.emit('toggle-pause', { sessionCode });
+    }
   };
 
   if (!session) return <div className="center-msg">Session not found</div>;
   if (ended) return <div className="center-msg">Session ended</div>;
 
-const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null;
+  const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null;
 
   return (
     <div className="session-page">
@@ -162,13 +244,21 @@ const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null
           <span className="session-title">{session.name}</span>
           <div className="actions">
             {role === "teacher" && (
-              <button className="btn-danger" onClick={handleEndSession}>End</button>
+              <>
+                <button
+                  className={isPaused ? "btn-success" : "btn-warning"}
+                  onClick={handleTogglePause}
+                >
+                  {isPaused ? "Resume" : "Pause"}
+                </button>
+                <button className="btn-danger" onClick={handleEndSession}>End</button>
+              </>
             )}
 
             {role === "student" && (
               <button className="btn-danger" onClick={handleStudentLeave}>Leave</button>
             )}
-            
+
             <button className="btn-icon" onClick={() => navigate("/")}>
               <ArrowLeft size={14} />
             </button>
@@ -177,40 +267,40 @@ const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null
 
         {/* Q&A */}
         <div className={`qa-sidebar ${showSidebar ? "open" : ""}`}>
-  <h3>Questions</h3>
-  {questions.map((q, index) => (
-    <div
-      key={q.id}
-     className={`sidebar-item ${currentSlideIndex === index ? "active" : ""}`}
-      onClick={() => {
-        setCurrentSlideIndex(index);
-        setShowSidebar(false);
-      }}
-    >
-      <strong>{q.studentName}</strong>
-      <p>{q.question}</p>
-    </div>
-  ))}
-</div>
-{showSidebar && (
-  <div className="overlay" onClick={() => setShowSidebar(false)} />
-)}
+          <h3>Questions</h3>
+          {questions.map((q, index) => (
+            <div
+              key={q.id}
+              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""}`}
+              onClick={() => {
+                setCurrentSlideIndex(index);
+                setShowSidebar(false);
+              }}
+            >
+              <strong>{q.studentName}</strong>
+              <p>{q.question}</p>
+            </div>
+          ))}
+        </div>
+        {showSidebar && (
+          <div className="overlay" onClick={() => setShowSidebar(false)} />
+        )}
         <div className="card">
-        <div className="card-title">
-        <button onClick={() => setShowSidebar(true)} className="card-btn">☰</button>
-         Live Q&A {connected ? "🟢" : "⚪"}
-         </div>
-         
+          <div className="card-title">
+            <button onClick={() => setShowSidebar(true)} className="card-btn">☰</button>
+            Live Q&A {connected ? "🟢" : "⚪"} {isPaused && <span className="paused-badge">Paused</span>}
+          </div>
 
-         {questions.length === 0 ? (
-       <div className="qa-empty">No questions yet</div>
-     ) : current === null ? (
-       <div className="qa-empty">Select a question from sidebar</div>
-         ) : (
-          <div className="qa-box">
-             <div className="question" key={current.id}>
-               <span className="student">{current?.studentName}</span>
-               <p>{current?.question}</p>
+
+          {questions.length === 0 ? (
+            <div className="qa-empty">No questions yet</div>
+          ) : current === null ? (
+            <div className="qa-empty">Select a question from sidebar</div>
+          ) : (
+            <div className="qa-box">
+              <div className="question" key={current.id}>
+                <span className="student">{current?.studentName}</span>
+                <p>{current?.question}</p>
 
                 {current.answer ? (
                   <div className="answer">{current.answer}</div>
@@ -231,34 +321,39 @@ const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null
 
               {/* NAV */}
               <div className="nav-btns">
-                   <button disabled={currentSlideIndex === null}  onClick={() =>  setCurrentSlideIndex(i =>
-                       i === null ? 0 : Math.max(0, i - 1) )
-                      }
-                      >Prev
-              </button>
-              <button
-    disabled={currentSlideIndex === null}
-    onClick={() =>
-      setCurrentSlideIndex(i =>
-        i === null ? 0 : Math.min(questions.length - 1, i + 1)
-      )
-    }
-  >
-    Next
-  </button>
-</div>
- </div>
+                <button disabled={currentSlideIndex === null} onClick={() => setCurrentSlideIndex(i =>
+                  i === null ? 0 : Math.max(0, i - 1))
+                }
+                >Prev
+                </button>
+                <button
+                  disabled={currentSlideIndex === null}
+                  onClick={() =>
+                    setCurrentSlideIndex(i =>
+                      i === null ? 0 : Math.min(questions.length - 1, i + 1)
+                    )
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
 
           {role === "student" && (
-            <div className="input-row">
+            <div className={`input-row ${isPaused ? "paused-input" : ""}`}>
               <input
                 className="input"
                 value={newQuestion}
                 onChange={(e) => setNewQuestion(e.target.value)}
-                placeholder="Ask a question..."
+                placeholder={isPaused ? "Session is paused..." : "Ask a question..."}
+                disabled={isPaused}
               />
-              <button className="btn-primary" onClick={handleSendQuestion}>
+              <button
+                className="btn-primary"
+                onClick={handleSendQuestion}
+                disabled={isPaused}
+              >
                 Send
               </button>
             </div>

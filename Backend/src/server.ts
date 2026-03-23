@@ -1,5 +1,6 @@
 import express from "express";
 import authRoutes from './routes/authRoutes';
+import sessionRoutes from './routes/sessionRoutes';
 import cors from "cors";
 import connectDB from "./config/db";
 import dotenv from 'dotenv';
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 connectDB();
 app.use("/", authRoutes);
+app.use("/", sessionRoutes);
 app.get("/", (req, res) => {
   res.send("Server working");
 });

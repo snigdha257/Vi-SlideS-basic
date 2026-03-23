@@ -39,9 +39,16 @@ export default function Login() {
       if (credentialResponse.credential) {
         const response = await authService.googleLogin(credentialResponse.credential);
         if (response.token && response.user) {
-          localStorage.setItem("studentInfo", JSON.stringify(response.user));
+          //name is extracted from google response
+          const name = response.user.name || response.user.email?.split("@")[0] || "Student";
+          const userData = {
+            ...response.user,
+            name
+          };
+
+          localStorage.setItem("studentInfo", JSON.stringify(userData));
           toast.success("Google Login Successful!");
-          if (response.user.role === "teacher") {
+          if (userData.role === "teacher") {
             navigate("/teacher");
           } else {
             navigate("/student");
