@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-export const useSocket = (sessionCode: string, role: string, userName: string) => {
+//added email to query params for teacher role to identify them in socket server
+export const useSocket = (sessionCode: string, role: string, userName: string, email?: string) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -12,7 +13,8 @@ export const useSocket = (sessionCode: string, role: string, userName: string) =
       query: {
         sessionCode,
         role,
-        userName
+        userName,
+        email
       }
     });
 
@@ -31,7 +33,7 @@ export const useSocket = (sessionCode: string, role: string, userName: string) =
     return () => {
       newSocket.disconnect();
     };
-  }, [sessionCode, role, userName]);
+  }, [sessionCode, role, userName, email]);
 
   return { socket, connected };
 };

@@ -48,96 +48,124 @@ export default function Session() {
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
-  const { socket, connected } = useSocket(
-    sessionCode || '',
-    role || '',
-    userInfo.name || ''
-  );
+const name =
+  userInfo.name ||
+  userInfo.email?.split("@")[0] ||
+  localStorage.getItem("name") ||
+  "Student";
+
+const { socket, connected } = useSocket(
+  sessionCode || '',
+  role || '',
+  name,
+  userInfo.email
+);
 
   // SOCKET
   useEffect(() => {
-    if (!socket) return;
+  if (!socket) return;
 
-    socket.on('load-questions', setQuestions);
-    socket.on('new-question', (q: Question) =>
-      setQuestions(prev => [...prev, q])
-    );
-    socket.on('new-answer', (q: Question) =>
-      setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
-    );
-    socket.on('session-ended', () => {
-     if(role === "student"){
-      toast.error('Session has been ended by the teacher');
+  socket.on('load-questions', setQuestions);
+  socket.on('new-question', (q: Question) =>
+    setQuestions(prev => [...prev, q])
+  );
+  socket.on('new-answer', (q: Question) =>
+    setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
+  );
+  socket.on('student-joined', (studentName: string) => {
+    toast.success(`${studentName} joined the session`);
+  });
+  socket.on('student-left', (studentName: string) => {
+    toast.error(`${studentName} left the session`);
+  });
+  //update-students listener added to update students list in real-time
+  socket.on('update-students', (studentList: string[]) => {
+    setStudents(studentList.map(name => ({
+      id: name,
+      name: name,
+      joinedAt: new Date().toISOString()
+    })));
+  });
+  socket.on('session-ended', () => {
+    setEnded(true);
+    toast.error('Session has been ended by the teacher');
+    if(role === 'student') {
       setTimeout(() => {
         navigate('/student');
       }, 2000);
     }
-    });
-    socket.on('session-paused-toggled', (paused: boolean) => {
-      setIsPaused(paused);
-      if (paused) {
-        toast.error('Session has been paused');
-      } else {
-        toast.success('Session has been resumed');
-      }
-    });
+  });
+  socket.on('session-paused-toggled', (paused: boolean) => {
+    setIsPaused(paused);
+    if (paused) {
+      toast.error('Session has been paused');
+    } else {
+      toast.success('Session has been resumed');
+    }
+  });
 
-    return () => {
-      socket.off('load-questions');
-      socket.off('new-question');
-      socket.off('new-answer');
-      socket.off('session-ended');
-      socket.off('session-paused-toggled');
-    };
-  }, [socket]);
-
-  // LOAD SESSION
+  return () => {
+    socket.off('load-questions');
+    socket.off('new-question');
+    socket.off('new-answer');
+    socket.off('student-joined');
+    socket.off('student-left');
+    socket.off('update-students');//added off for update-students
+    socket.off('session-ended');
+    socket.off('session-paused-toggled');
+  };
+}, [socket]);
+  // AUTO JOIN & LOAD SESSION
   useEffect(() => {
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const found = sessions.find(s => s.code === sessionCode);
-    if (!found) return setSession(null);
-    if (found.status === "ended") setEnded(true);
+    if (!sessionCode) return;
 
-    setSession(found);
-    setStudents(found.students || []);
+    const fetchSession = async () => {
+      try {
+        // Try to fetch from backend database first
+        const response = await fetch(`http://localhost:5000/session/${sessionCode}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSession(data.session);
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching session from backend:", error);
+      }
+
+      // Fallback to localStorage
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const current = sessions.find(s => s.code === sessionCode);
+
+      if (current) {
+        setSession(current);
+      }
+    };
+
+    fetchSession();
   }, [sessionCode]);
 
-  // AUTO JOIN
+  // Handle student joining (via socket)
   useEffect(() => {
-    if (role !== "student" || !sessionCode) return;
+    if (!session || !sessionCode || role !== "student") return;
 
     const info = JSON.parse(localStorage.getItem("studentInfo") || "{}");
     const name = info.name || info.email?.split("@")[0];
 
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const current = sessions.find(s => s.code === sessionCode);
+    if (!name) return;
 
-    if (!current) return;
-
-    setStudents(current.students || []);
-
-    const exists = current.students?.some(s => s.name === name);
-    if (!exists) {
-      const newStudent: Student = {
-        id: Date.now().toString(),
-        name,
-        joinedAt: new Date().toISOString()
-      };
-
-      const updated = sessions.map(s =>
-        s.code === sessionCode
-          ? { ...s, students: [...(s.students || []), newStudent] }
-          : s
-      );
-
-      localStorage.setItem("sessions", JSON.stringify(updated));
-      setStudents(prev => [...prev, newStudent]);
-    }
-  }, [role, sessionCode]);
+    // Note: Student list is now fully managed by socket events
+    // The 'update-students' event will update the students state
+  }, [session, sessionCode, role]);
 
   // ACTIONS
   const handleSendQuestion = () => {
-    if (!newQuestion.trim() || !socket || isPaused) return;
+    if (!newQuestion.trim() || !socket || isPaused) return;//added isPaused check to prevent sending questions when session is paused
 
     socket.emit('send-question', {
       sessionCode,
@@ -159,26 +187,40 @@ export default function Session() {
     setAnswerText('');
   };
 
-  const handleStudentLeave = () => navigate("/student");
+  // Update handleStudentLeave in Session.tsx:
+const handleStudentLeave = () => {
+  if (socket && role === "student") {
+    socket.emit('student-leave', { sessionCode });
+  }
+  navigate("/student");
+};
 
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
     if (socket && role === "teacher") {
       socket.emit('end-session', { sessionCode });
+      
+      // Also update backend
+      try {
+        await fetch(`http://localhost:5000/session/${sessionCode}/end`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          }
+        });
+      } catch (error) {
+        console.error("Error ending session in backend:", error);
+      }
     }
 
+    // Update localStorage backup
     const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-
     const updated = sessions.map(s =>
       s.code === sessionCode ? { ...s, status: "ended" } : s
     );
-
     localStorage.setItem("sessions", JSON.stringify(updated));
-    
-    if (role === "teacher") {
-    navigate(`/summary/${sessionCode}`);
-  } else {
-    navigate("/student");
-  }
+    setEnded(true);
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
   };
 
   const handleTogglePause = () => {
