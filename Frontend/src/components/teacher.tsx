@@ -25,6 +25,13 @@ export default function Teacher() {
   const [sessionName, setSessionName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    navigate("/login");
+  };
  
   const handleCreateSession = async () => {
     const trimmedName = sessionName.trim();
@@ -86,7 +93,12 @@ export default function Teacher() {
           <div className="brand-icon">V</div>
           <span>Vi-SlideS</span>
         </div>
-        <div className="t-nav-badge">Teacher Mode</div>
+        <div className="t-nav-actions">
+          <div className="t-nav-badge">Teacher Mode</div>
+          <button className="t-logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </nav>
  
       {/* HERO */}

@@ -17,6 +17,13 @@ export default function Student() {
   const [isJoining, setIsJoining] = useState(false);
   const navigate = useNavigate();
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    navigate("/login");
+  };
+
   //Helper: get session from localStorage
   const getSessionFromLocal = (code: string): SessionItem | undefined => {
     const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
@@ -111,7 +118,12 @@ export default function Student() {
           <div className="brand-icon">V</div>
           <span>Vi-SlideS</span>
         </div>
-        <div className="s-nav-badge">Student Mode</div>
+        <div className="s-nav-actions">
+          <div className="s-nav-badge">Student Mode</div>
+          <button className="s-logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </nav>
 
       <main className="s-main">
