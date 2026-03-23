@@ -86,6 +86,7 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     }
     // Send existing questions to new user
     socket.emit('load-questions', activeSessions[sessionCode as string].questions);
+    socket.emit('session-paused-toggled', activeSessions[sessionCode as string].isPaused);
 
     // Handle new question
     socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
@@ -147,6 +148,27 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         // Broadcast to all in session
         io.to(data.sessionCode).emit('new-answer', activeSessions[data.sessionCode].questions[questionIndex]);
         console.log(`Answer added in ${data.sessionCode}:`, data.questionId);
+      }
+    });
+
+    // Handle end session
+    socket.on('end-session', (data: { sessionCode: string }) => {
+      if (role === 'teacher') {
+        io.to(data.sessionCode).emit('session-ended');
+        delete activeSessions[data.sessionCode];
+        console.log(`Session ${data.sessionCode} ended by teacher`);
+      }
+    });
+
+    // Handle toggle pause
+    socket.on('toggle-pause', (data: { sessionCode: string }) => {
+      if (role === 'teacher') {
+        const session = activeSessions[data.sessionCode];
+        if (session) {
+          session.isPaused = !session.isPaused;
+          io.to(data.sessionCode).emit('session-paused-toggled', session.isPaused);
+          console.log(`Session ${data.sessionCode} pause state: ${session.isPaused}`);
+        }
       }
     });
 

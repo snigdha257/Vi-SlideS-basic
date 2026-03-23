@@ -230,7 +230,7 @@ const handleStudentLeave = () => {
   };
 
   if (!session) return <div className="center-msg">Session not found</div>;
-  if (ended) return <div className="center-msg">Session ended</div>;
+  if (ended && role !== "teacher") return <div className="center-msg">Session ended</div>;
 
   const current = currentSlideIndex !== null ? questions[currentSlideIndex] : null;
 
