@@ -6,6 +6,7 @@ import connectDB from "./config/db";
 import dotenv from 'dotenv';
 import { createSocketServer } from "./socketServer";
 import { createServer } from 'http';
+import sessionRoutes from "./routes/sessionRoutes";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -18,6 +19,7 @@ app.use("/", sessionRoutes);
 app.get("/", (req, res) => {
   res.send("Server working");
 });
+app.use("/api/session", sessionRoutes);
 
 const httpServer = createServer(app);
 const { io } = createSocketServer(httpServer);
