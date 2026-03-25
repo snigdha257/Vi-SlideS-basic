@@ -1,6 +1,6 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import Session from "./models/Session";
+import Session from "./models/sessionModels";
 interface Question {
   id: string;
   studentName: string;

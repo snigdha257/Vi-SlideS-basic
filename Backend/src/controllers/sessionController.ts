@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Session from "../models/Session";
+import Session from "../models/sessionModels";
 import PDFDocument from "pdfkit";
 
 export const getSessionSummary = async (req: any, res: any) => {
