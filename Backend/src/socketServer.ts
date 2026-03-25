@@ -151,27 +151,6 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       }
     });
 
-    // Handle end session
-    socket.on('end-session', (data: { sessionCode: string }) => {
-      if (role === 'teacher') {
-        io.to(data.sessionCode).emit('session-ended');
-        delete activeSessions[data.sessionCode];
-        console.log(`Session ${data.sessionCode} ended by teacher`);
-      }
-    });
-
-    // Handle toggle pause
-    socket.on('toggle-pause', (data: { sessionCode: string }) => {
-      if (role === 'teacher') {
-        const session = activeSessions[data.sessionCode];
-        if (session) {
-          session.isPaused = !session.isPaused;
-          io.to(data.sessionCode).emit('session-paused-toggled', session.isPaused);
-          console.log(`Session ${data.sessionCode} pause state: ${session.isPaused}`);
-        }
-      }
-    });
-
     // Handle student leave
     socket.on('student-leave', async (data: { sessionCode: string }) => {
       if (role === 'student' && userName && activeSessions[data.sessionCode]) {
@@ -199,7 +178,8 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         }
       }
     });
-// Handle pause/resume toggle
+
+    // Handle pause/resume toggle
     socket.on('toggle-pause', (data: { sessionCode: string }) => {
       if (role === 'teacher' && activeSessions[data.sessionCode]) {
         activeSessions[data.sessionCode].isPaused = !activeSessions[data.sessionCode].isPaused;
