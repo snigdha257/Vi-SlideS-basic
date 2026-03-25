@@ -55,11 +55,18 @@ export default function Session() {
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
-  const { socket, connected } = useSocket(
-    sessionCode || '',
-    role || '',
-    userInfo.name || ''
-  );
+const name =
+  userInfo.name ||
+  userInfo.email?.split("@")[0] ||
+  localStorage.getItem("name") ||
+  "Student";
+
+const { socket, connected } = useSocket(
+  sessionCode || '',
+  role || '',
+  name,
+  userInfo.email
+);
 
   // SOCKET
   useEffect(() => {
@@ -142,36 +149,16 @@ export default function Session() {
 }, [sessionCode]);
   // AUTO JOIN
   useEffect(() => {
-    if (role !== "student" || !sessionCode) return;
+    if (!session || !sessionCode || role !== "student") return;
 
     const info = JSON.parse(localStorage.getItem("studentInfo") || "{}");
     const name = info.name || info.email?.split("@")[0];
 
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const current = sessions.find(s => s.code === sessionCode);
+    if (!name) return;
 
-    if (!current) return;
-
-    setStudents(current.students || []);
-
-    const exists = current.students?.some(s => s.name === name);
-    if (!exists) {
-      const newStudent: Student = {
-        id: Date.now().toString(),
-        name,
-        joinedAt: new Date().toISOString()
-      };
-
-      const updated = sessions.map(s =>
-        s.code === sessionCode
-          ? { ...s, students: [...(s.students || []), newStudent] }
-          : s
-      );
-
-      localStorage.setItem("sessions", JSON.stringify(updated));
-      setStudents(prev => [...prev, newStudent]);
-    }
-  }, [role, sessionCode]);
+    // Note: Student list is now fully managed by socket events
+    // The 'update-students' event will update the students state
+  }, [session, sessionCode, role]);
 
   // ACTIONS
   const handleSendQuestion = () => {

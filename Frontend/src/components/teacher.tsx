@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LayoutDashboard, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import "../styles/teacher.css";
-
+ 
 function generateSessionCode(length = 6) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -12,7 +12,7 @@ function generateSessionCode(length = 6) {
   }
   return code;
 }
-
+ 
 type SessionItem = {
   code: string;
   name: string;
@@ -20,35 +20,71 @@ type SessionItem = {
   createdAt: string;
   status?: "active" | "ended";
 };
-
+ 
 export default function Teacher() {
   const [sessionName, setSessionName] = useState("");
-  const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    setActiveSessions(sessions.filter((s) => s.status !== "ended"));
-  }, []);
-
-  const handleCreateSession = () => {
-    const trimmedName = sessionName.trim();
-    if (!trimmedName) { toast.error("Please enter a session name"); return; }
-
-    const sessionCode = generateSessionCode();
-    const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-    const newSession: SessionItem = {
-      code: sessionCode,
-      name: trimmedName,
-      createdBy: "teacher",
-      createdAt: new Date().toISOString(),
-      status: "active",
-    };
-    localStorage.setItem("sessions", JSON.stringify([...sessions, newSession]));
-    setActiveSessions((prev) => [...prev, newSession]);
-    navigate(`/session/${sessionCode}?role=teacher`);
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    navigate("/login");
   };
+ 
+  const handleCreateSession = async () => {
+    const trimmedName = sessionName.trim();
+    if (!trimmedName) { 
+      toast.error("Please enter a session name"); 
+      return; 
+    }
+ 
+    setIsCreating(true);
+    const sessionCode = generateSessionCode();
+    
+    try {
+      // Create session in backend database
+      const response = await fetch("http://localhost:5000/create-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          code: sessionCode,
+          name: trimmedName
+        })
+      });
 
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.message || "Failed to create session");
+        setIsCreating(false);
+        return;
+      }
+
+      // Also save to localStorage for fallback compatibility
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const newSession: SessionItem = {
+        code: sessionCode,
+        name: trimmedName,
+        createdBy: "teacher",
+        createdAt: new Date().toISOString(),
+        status: "active",
+      };
+      localStorage.setItem("sessions", JSON.stringify([...sessions, newSession]));
+      
+      toast.success("Session created successfully");
+      setSessionName("");
+      navigate(`/session/${sessionCode}?role=teacher`);
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast.error("Failed to create session");
+      setIsCreating(false);
+    }
+  };
+ 
   return (
     <div className="teacher-page">
       {/* NAV */}
@@ -57,15 +93,20 @@ export default function Teacher() {
           <div className="brand-icon">V</div>
           <span>Vi-SlideS</span>
         </div>
-        <div className="t-nav-badge">Teacher Mode</div>
+        <div className="t-nav-actions">
+          <div className="t-nav-badge">Teacher Mode</div>
+          <button className="t-logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </nav>
-
+ 
       {/* HERO */}
       <div className="t-hero">
         <h1>Teacher Dashboard</h1>
         <p>Create and manage your interactive presentation sessions.</p>
       </div>
-
+ 
       {/* CONTENT GRID */}
       <div className="t-content">
         {/* Create Session */}
@@ -83,44 +124,17 @@ export default function Teacher() {
               placeholder="e.g. Physics 101 – Thermodynamics"
               value={sessionName}
               onChange={(e) => setSessionName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
+              onKeyDown={(e) => e.key === "Enter" && !isCreating && handleCreateSession()}
+              disabled={isCreating}
             />
-            <button className="create-btn" onClick={handleCreateSession}>
-              <Zap size={18} /> Create &amp; Start Session
+            <button 
+              className="create-btn" 
+              onClick={handleCreateSession}
+              disabled={isCreating}
+            >
+              {/*this loading state has been added*/}
+              <Zap size={18} /> {isCreating ? "Creating..." : "Create & Start Session"}
             </button>
-          </div>
-        </div>
-
-        {/* Active Sessions */}
-        <div className="t-card">
-          <div className="t-card-header">
-            <div>
-              <h2>Active Sessions</h2>
-              <p>{activeSessions.length} session{activeSessions.length !== 1 ? "s" : ""} running</p>
-            </div>
-          </div>
-          <div className="t-card-body">
-            {activeSessions.length === 0 ? (
-              <div className="t-empty">
-                <div className="t-empty-icon">🎬</div>
-                <p>No active sessions yet.<br />Create one to get started!</p>
-              </div>
-            ) : (
-              <div className="session-list">
-                {activeSessions.map((s) => (
-                  <div key={s.code} className="session-list-item" onClick={() => navigate(`/session/${s.code}?role=teacher`)}>
-                    <div className="s-item-left">
-                      <div className="s-item-dot" />
-                      <div>
-                        <div className="s-item-name">{s.name}</div>
-                        <div className="s-item-code">{s.code}</div>
-                      </div>
-                    </div>
-                    <button className="s-item-join">Open →</button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

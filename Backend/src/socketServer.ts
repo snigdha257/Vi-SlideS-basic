@@ -69,7 +69,10 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     // Join session room
     socket.join(sessionCode as string);
     console.log(`${role} ${userName} joined session ${sessionCode}`);
-
+    socket.emit(
+      'update-students',
+      activeSessions[sessionCode as string].students
+    );
     // Add student to active students list
     // Add student to active students list + SAVE TO DB
 if (role === 'student' && userName) {
@@ -142,7 +145,8 @@ if (role === 'student' && userName) {
   io.to(data.sessionCode).emit('new-question', newQuestion);
 });
     // Handle answer
-    socket.on('send-answer', (data: { sessionCode: string; questionId: string; answer: string }) => {
+    socket.on('send-answer', async (data: { sessionCode: string; questionId: string; answer: string }) => {
+      if (!activeSessions[data.sessionCode]) return;
       const questionIndex = activeSessions[data.sessionCode].questions.findIndex(
         q => q.id === data.questionId
       );

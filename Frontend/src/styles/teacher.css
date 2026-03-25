@@ -69,6 +69,29 @@ font-size: 0.8rem;
 font-weight: 600;
 }
 
+.t-nav-actions {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.t-logout-btn {
+background: transparent;
+border: 1px solid #475569;
+color: #e2e8f0;
+padding: 5px 12px;
+border-radius: 16px;
+font-size: 0.8rem;
+font-weight: 600;
+cursor: pointer;
+transition: border-color 0.2s, background 0.2s;
+}
+
+.t-logout-btn:hover {
+border-color: #94a3b8;
+background: #1e293b;
+}
+
 /* HERO */
 
 .t-hero {
