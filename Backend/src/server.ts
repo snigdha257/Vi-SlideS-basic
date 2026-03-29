@@ -8,6 +8,7 @@ import { createSocketServer } from "./socketServer";
 import { createServer } from 'http';
 import os from 'os';
 
+
 const app = express();
 const port = process.env.PORT || 5000;
 dotenv.config();
@@ -15,6 +16,11 @@ app.use(cors());
 app.use(express.json());
 connectDB();
 app.use("/", authRoutes);
+app.use("/", sessionRoutes);
+app.get("/", (req, res) => {
+  res.send("Server working");
+});
+app.use("/api/session", sessionRoutes);
 
 const httpServer = createServer(app);
 const { io } = createSocketServer(httpServer);
