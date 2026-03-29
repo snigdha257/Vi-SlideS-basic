@@ -5,7 +5,7 @@ import { authenticateToken } from "../middleware/authMiddleware";
 import { submitQRQuestion } from "../controllers/qrController";
 import { askAIForQuestion } from "../controllers/aiController";
 
-export default function sessionRoutes(io: SocketIOServer) {
+export default function(io: SocketIOServer) {
   const router = express.Router();
 
   // Create a new session
@@ -205,18 +205,3 @@ export default function sessionRoutes(io: SocketIOServer) {
 
   return router;
 }
-
-    session.status = "ended";
-    await session.save();
-
-    res.status(200).json({
-      message: "Session ended",
-      session
-    });
-  } catch (error) {
-    console.error("Error ending session:", error);
-    res.status(500).json({ message: "Failed to end session" });
-  }
-});
-
-export default router;
