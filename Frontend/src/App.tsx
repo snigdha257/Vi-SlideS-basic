@@ -20,8 +20,7 @@ export default function App() {
         <Route path="/student" element={<Student />} />
         <Route path="/teacher" element={<Teacher />} />
         <Route path="/session/:sessionCode" element={<Session />} />
-        <Route path="/session-summary/:sessionId" element={<SessionSummary />} />
-        <Route path="/ask/:sessionCode" element={<PublicAsk />} />
+      <Route path="/summary/:sessionId" element={<SessionSummary />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </BrowserRouter>
