@@ -19,6 +19,8 @@ type Question = {
   answer?: string;
   email?: string;
   source?: string;
+  aiAnswer?: string;
+  aiAnsweredAt?: string;
 };
 
 type SessionItem = {
@@ -51,6 +53,7 @@ export default function Session() {
   const [answerText, setAnswerText] = useState('');
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [aiLoading, setAiLoading] = useState<string | null>(null); // questionId being processed by AI
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
@@ -78,6 +81,15 @@ const { socket, connected } = useSocket(
     socket.on('new-answer', (q: Question) =>
       setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
     );
+    socket.on('ai-answer', (data: { questionId: string; question: string; answer: string; source: string }) => {
+      setQuestions(prev => prev.map(q =>
+        q.id === data.questionId
+          ? { ...q, aiAnswer: data.answer }
+          : q
+      ));
+      setAiLoading(null);
+      toast.success('AI answer received!');
+    });
     socket.on('student-joined', (studentName: string) => {
       toast.success(`${studentName} joined the session`);
     });
@@ -113,6 +125,7 @@ const { socket, connected } = useSocket(
       socket.off('load-questions');
       socket.off('new-question');
       socket.off('new-answer');
+      socket.off('ai-answer');
       socket.off('student-joined');
       socket.off('student-left');
       socket.off('update-students');
@@ -220,6 +233,33 @@ const { socket, connected } = useSocket(
     });
 
     setAnswerText('');
+  };
+
+  const handleAskAI = async (questionId: string) => {
+    if (!sessionCode || aiLoading) return;
+
+    setAiLoading(questionId);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:5000/session/${sessionCode}/question/${questionId}/ask-ai`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.message || "Failed to get AI answer");
+        setAiLoading(null);
+      }
+      // Success will be handled by socket event
+    } catch (error) {
+      console.error("Error asking AI:", error);
+      toast.error("Network error while asking AI");
+      setAiLoading(null);
+    }
   };
 
   // Update handleStudentLeave in Session.tsx:
@@ -378,6 +418,20 @@ const handleStudentLeave = () => {
                     <button className="btn-primary" onClick={() => handleSendAnswer(current.id)}>
                       Reply
                     </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleAskAI(current.id)}
+                      disabled={aiLoading === current.id || !!current.aiAnswer}
+                    >
+                      {aiLoading === current.id ? "🤖 Thinking..." : current.aiAnswer ? "🤖 AI Answered" : "🤖 Ask AI"}
+                    </button>
+                  </div>
+                )}
+
+                {current.aiAnswer && (
+                  <div className="ai-answer">
+                    <div className="ai-header">🤖 AI Answer</div>
+                    <div className="ai-content">{current.aiAnswer}</div>
                   </div>
                 )}
               </div>

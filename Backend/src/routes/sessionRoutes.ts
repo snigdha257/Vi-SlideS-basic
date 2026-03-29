@@ -3,6 +3,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import Session from "../models/sessionModels";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { submitQRQuestion } from "../controllers/qrController";
+import { askAIForQuestion } from "../controllers/aiController";
 
 export default function sessionRoutes(io: SocketIOServer) {
   const router = express.Router();
@@ -195,6 +196,11 @@ export default function sessionRoutes(io: SocketIOServer) {
   // QR-based question submission (public endpoint - no authentication required)
   router.post("/ask/:sessionCode", async (req: any, res: any) => {
     await submitQRQuestion(req, res, io);
+  });
+
+  // Ask AI for a question (teacher only)
+  router.post("/session/:sessionCode/question/:questionId/ask-ai", authenticateToken, async (req: any, res: any) => {
+    await askAIForQuestion(req, res, io);
   });
 
   return router;

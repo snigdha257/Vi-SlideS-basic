@@ -133,6 +133,85 @@
   font-size: 0.9rem;
 }
 
+/* AI ANSWER */
+
+.ai-answer {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #1e1b4b;
+  border: 1px solid #3730a3;
+}
+
+.ai-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #a78bfa;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-content {
+  color: #c4b5fd;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* TEACHER ANSWER */
+
+.teacher-answer {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #022c22;
+  border: 1px solid #065f46;
+}
+
+.teacher-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6ee7b7;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.teacher-content {
+  color: #6ee7b7;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* ANSWER HEADER */
+
+.answer-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-icon, .teacher-icon {
+  font-size: 1rem;
+}
+
+.ai-label {
+  color: #a78bfa;
+}
+
+.teacher-label {
+  color: #6ee7b7;
+}
+
+.answer-content {
+  line-height: 1.4;
+}
+
 /* INPUT ROW */
 
 .input-row {

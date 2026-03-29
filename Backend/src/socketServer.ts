@@ -9,9 +9,10 @@ interface Question {
   timestamp: string;
   answer?: string;
   email?: string;
-  source?: string;
+  source: string;
+  aiAnswer?: string;//added aiAnswer and aiAnsweredAt to Question interface
+  aiAnsweredAt?: string;
 }
-
 interface ActiveSession {
   [sessionCode: string]: {
     questions: Question[];
@@ -78,7 +79,9 @@ export const createSocketServer = (httpServer: HTTPServer) => {
           timestamp: q.timestamp?.toISOString ? q.timestamp.toISOString() : q.timestamp,
           answer: q.answer,
           email: q.email,
-          source: q.source || "session"
+          source: q.source || "session",
+          aiAnswer: q.aiAnswer,//added aiAnswer and aiAnsweredAt mapping
+          aiAnsweredAt: q.aiAnsweredAt?.toISOString ? q.aiAnsweredAt.toISOString() : q.aiAnsweredAt
         }));
 
         const existingIds = new Set(activeSessions[sessionCode as string].questions.map(q => q.id));
@@ -98,9 +101,9 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         }
       }
     } catch (error) {
-      console.error("Error reconciling session with DB:", error);
+      //console.error("Error reconciling session with DB:", error);
     }
-
+  
     // Join session room
     socket.join(sessionCode as string);
     console.log(`${role} ${userName} joined session ${sessionCode}`);
@@ -184,7 +187,31 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       );
 
       if (questionIndex !== -1) {
-        activeSessions[data.sessionCode].questions[questionIndex].answer = data.answer;
+        // Fetch the latest question from DB to ensure aiAnswer is included
+        try {
+          const session = await Session.findOne({ code: data.sessionCode });
+          if (session && session.questions) {
+            const dbQuestion = session.questions.find(q => q.id === data.questionId);
+            if (dbQuestion) {
+              // Update activeSessions with the latest from DB, then set the new answer
+              activeSessions[data.sessionCode].questions[questionIndex] = {
+                id: dbQuestion.id,
+                studentName: dbQuestion.studentName,
+                question: dbQuestion.question,
+                timestamp: dbQuestion.timestamp?.toDateString ? dbQuestion.timestamp.toDateString() : dbQuestion.timestamp.toDateString(),
+                answer: data.answer,
+                email: dbQuestion.email||undefined,
+                source: dbQuestion.source || "session",
+                aiAnswer: dbQuestion.aiAnswer||null||undefined,//added aiAnswer and aiAnsweredAt mapping
+                aiAnsweredAt: dbQuestion.aiAnsweredAt?.toDateString ? dbQuestion.aiAnsweredAt.toDateString() : dbQuestion.aiAnsweredAt?.toDateString()
+              };
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching question from DB:", error);
+          // Fallback to just updating answer
+          activeSessions[data.sessionCode].questions[questionIndex].answer = data.answer;
+        }
         
         // Saving answer to database
         try {

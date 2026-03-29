@@ -112,9 +112,8 @@ export default function PublicAsk() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-card-header">
-            <h1>Ask a Question</h1>
-            <p>Session Code: <strong>{sessionCode}</strong></p>
-            <p className="auth-subtitle">Submit your question to the live session</p>
+            <h1 style={{textAlign: "center"}}>Ask a Question</h1>
+            <p className="auth-subtitle" style={{textAlign: "center"}}>Submit your question to the live session</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
@@ -173,7 +172,7 @@ export default function PublicAsk() {
           </form>
 
           <div className="auth-footer">
-            <p>Your question will appear live in the session.</p>
+            <p style={{textAlign: "center"}}>Your question will appear live in the session.</p>
           </div>
         </div>
       </div>

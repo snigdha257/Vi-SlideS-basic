@@ -103,12 +103,13 @@ const SessionSummary = () => {
       q.studentName || "Unknown",
       q.question,
       q.answer || "No answer yet",
+      q.aiAnswer ? `AI: ${q.aiAnswer}` : "N/A",
       q.timestamp ? new Date(q.timestamp).toLocaleString() : "N/A"
     ]);
 
     autoTable(doc, {
       startY: 30,
-      head: [["Student", "Question", "Answer", "Time"]],
+      head: [["Student", "Question", "Teacher Answer", "AI Answer", "Time"]],
       body: tableData,
     });
 

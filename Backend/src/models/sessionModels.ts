@@ -28,6 +28,12 @@ const questionSchema = new mongoose.Schema({
     type: String,
     enum: ["session", "qr"],
     default: "session"
+  },
+  aiAnswer: {
+    type: String
+  },
+  aiAnsweredAt: {
+    type: Date
   }
 });
 

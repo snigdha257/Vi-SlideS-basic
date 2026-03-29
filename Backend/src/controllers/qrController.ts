@@ -9,6 +9,8 @@ interface Question {
   answer?: string;
   email?: string;
   source: string;
+  aiAnswer?: string;
+  aiAnsweredAt?: string;
 }
 
 export const submitQRQuestion = async (
