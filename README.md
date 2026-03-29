@@ -6,12 +6,12 @@ Documentation for the **Vi-SlideS real-time classroom interaction platform**.
 
 ## 🔗 Quick Links
 
-* [SETUP_GUIDE.md](SETUP_GUIDE.md) – Setup & installation
-* [API_DOCUMENTATION.md](API_DOCUMENTATION.md) – API & Socket.IO
-* [ARCHITECTURE.md](ARCHITECTURE.md) – System design
-* [BACKEND_SERVICES.md](BACKEND_SERVICES.md) – Backend details
-* [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md) – Frontend structure
-* [index.md](index.md) – Project overview
+* [SETUP_GUIDE.md](/docs/SETUP_GUIDE.md) – Setup & installation
+* [API_DOCUMENTATION.md](/docs/API_DOCUMENTATION.md) – API & Socket.IO
+* [ARCHITECTURE.md](/docs/ARCHITECTURE.md) – System design
+* [BACKEND_SERVICES.md](/docs/BACKEND_SERVICES.md) – Backend details
+* [FRONTEND_COMPONENTS.md](/docs/FRONTEND_COMPONENTS.md) – Frontend structure
+* [index.md](/docs/index.md) – Project overview
 
 ---
 
