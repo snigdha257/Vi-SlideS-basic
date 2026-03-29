@@ -20,7 +20,6 @@ cd Vi-SlideS-basic
 ### Implementation Details
 - **[⚙️ Backend Services](BACKEND_SERVICES.md)** - Server-side code structure
 - **[🖥️ Frontend Components](FRONTEND_COMPONENTS.md)** - React components and UI
-- **[📄 Project Overview](README.md)** - Complete documentation index
 
 ## ✨ Key Features
 
