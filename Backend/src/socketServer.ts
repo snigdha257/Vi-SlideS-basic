@@ -7,8 +7,11 @@ interface Question {
   question: string;
   timestamp: string;
   answer?: string;
+  email?: string;
+  source: string;
+  aiAnswer?: string;//added aiAnswer and aiAnsweredAt to Question interface
+  aiAnsweredAt?: string;
 }
-
 interface ActiveSession {
   [sessionCode: string]: {
     questions: Question[];
@@ -22,8 +25,27 @@ const activeSessions: ActiveSession = {};
 export const createSocketServer = (httpServer: HTTPServer) => {
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: "http://localhost:5173",
-      methods: ["GET", "POST"]
+      origin: function(origin: string | undefined, callback: any) {
+        // Allow requests with no origin (mobile apps, curl requests, etc.)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+          "http://localhost:5173",
+          "http://localhost:3000",
+          "http://localhost:5000"
+        ];
+
+        // Check for private IP ranges
+        const isPrivateIP = /^http:\/\/(localhost|127\.|192\.168\.|10\.|172\.)/;
+        
+        if (allowedOrigins.includes(origin) || isPrivateIP.test(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      methods: ["GET", "POST"],
+      credentials: true
     }
   });
 
@@ -37,7 +59,7 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       return;
     }
 
-    // Initialize session if it doesn't exist
+    // Initialize session if it doesn't exist, and always recheck with DB (to keep latest questions after reloads)
     if (!activeSessions[sessionCode as string]) {
       activeSessions[sessionCode as string] = {
         questions: [],
@@ -66,6 +88,41 @@ export const createSocketServer = (httpServer: HTTPServer) => {
 
     }
 
+    try {
+      const dbSession = await Session.findOne({ code: sessionCode });
+      if (dbSession && dbSession.questions) {
+        const loadedFromDb = dbSession.questions.map((q: any) => ({
+          id: q.id,
+          studentName: q.studentName,
+          question: q.question,
+          timestamp: q.timestamp?.toISOString ? q.timestamp.toISOString() : q.timestamp,
+          answer: q.answer,
+          email: q.email,
+          source: q.source || "session",
+          aiAnswer: q.aiAnswer,//added aiAnswer and aiAnsweredAt mapping
+          aiAnsweredAt: q.aiAnsweredAt?.toISOString ? q.aiAnsweredAt.toISOString() : q.aiAnsweredAt
+        }));
+
+        const existingIds = new Set(activeSessions[sessionCode as string].questions.map(q => q.id));
+        const merged = [
+          ...activeSessions[sessionCode as string].questions,
+          ...loadedFromDb.filter(q => !existingIds.has(q.id))
+        ];
+
+        activeSessions[sessionCode as string].questions = merged;
+        if (loadedFromDb.length > 0) {
+          console.log(`Updated active session ${sessionCode} with ${loadedFromDb.length} DB questions`);
+        }
+
+        // Keep DB pause value if exists
+        if (dbSession.status === 'ended') {
+          activeSessions[sessionCode as string].isPaused = true;
+        }
+      }
+    } catch (error) {
+      //console.error("Error reconciling session with DB:", error);
+    }
+  
     // Join session room
     socket.join(sessionCode as string);
     console.log(`${role} ${userName} joined session ${sessionCode}`);

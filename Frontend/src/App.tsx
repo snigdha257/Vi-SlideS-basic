@@ -7,6 +7,7 @@ import Student from "./components/student";
 import Teacher from "./components/teacher";
 import Session from "./components/Session";
 import SessionSummary from "./components/SessionSummary";
+import PublicAsk from "./components/PublicAsk";
 
 export default function App() {
   return (

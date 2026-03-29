@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSocket } from '../hooks/useSocket';
 import "../styles/session.css";
@@ -19,6 +19,10 @@ type Question = {
   question: string;
   timestamp: string;
   answer?: string;
+  email?: string;
+  source?: string;
+  aiAnswer?: string;
+  aiAnsweredAt?: string;
 };
 type SessionItem = {
   code: string;
@@ -46,12 +50,17 @@ export default function Session() {
   const [students, setStudents] = useState<Student[]>([]);
   const [session, setSession] = useState<SessionItem | null>(null);
   const [ended, setEnded] = useState(false);
+  const [showQRCopied, setShowQRCopied] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [serverIp, setServerIp] = useState("localhost");
+  const [serverPort, setServerPort] = useState("5000");
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [answerText, setAnswerText] = useState('');
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [aiLoading, setAiLoading] = useState<string | null>(null); // questionId being processed by AI
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
@@ -241,6 +250,20 @@ const { socket, connected } = useSocket(
     }
   };
 
+  // Generate QR code URL
+  const getQRCodeUrl = () => {
+    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+    return encodeURIComponent(qrUrl);
+  };
+
+  const handleCopyQRLink = () => {
+    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+    navigator.clipboard.writeText(qrUrl);
+    setShowQRCopied(true);
+    setTimeout(() => setShowQRCopied(false), 2000);
+    toast.success("QR link copied to clipboard!");
+  };
+
   if (!session) return <div className="center-msg">Session not found</div>;
   if (ended && role !== "teacher") return <div className="center-msg">Session ended</div>;
 
@@ -257,6 +280,13 @@ const { socket, connected } = useSocket(
           <div className="actions">
             {role === "teacher" && (
               <>
+                <button
+                  className="btn-qr"
+                  onClick={() => setShowQRModal(true)}
+                  title="Show QR code for students to scan"
+                >
+                  📱
+                </button>
                 <button
                   className={isPaused ? "btn-success" : "btn-warning"}
                   onClick={handleTogglePause}
@@ -283,13 +313,16 @@ const { socket, connected } = useSocket(
           {questions.map((q, index) => (
             <div
               key={q.id}
-              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""}`}
+              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""} ${q.source === "qr" ? "qr-source" : ""}`}
               onClick={() => {
                 setCurrentSlideIndex(index);
                 setShowSidebar(false);
               }}
             >
-              <strong>{q.studentName}</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                <strong>{q.studentName}</strong>
+                {q.source === "qr" && <span className="qr-badge">QR</span>}
+              </div>
               <p>{q.question}</p>
             </div>
           ))}
@@ -311,8 +344,12 @@ const { socket, connected } = useSocket(
           ) : (
             <div className="qa-box">
               <div className="question" key={current.id}>
-                <span className="student">{current?.studentName}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "8px" }}>
+                  <span className="student">{current?.studentName}</span>
+                  {current?.source === "qr" && <span className="qr-badge">QR Submission</span>}
+                </div>
                 <p>{current?.question}</p>
+                {current?.email && <p className="question-email">Email: {current.email}</p>}
 
                 {current.answer ? (
                   <div className="answer">{current.answer}</div>
@@ -327,6 +364,20 @@ const { socket, connected } = useSocket(
                     <button className="btn-primary" onClick={() => handleSendAnswer(current.id)}>
                       Reply
                     </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleAskAI(current.id)}
+                      disabled={aiLoading === current.id || !!current.aiAnswer}
+                    >
+                      {aiLoading === current.id ? "🤖 Thinking..." : current.aiAnswer ? "🤖 AI Answered" : "🤖 Ask AI"}
+                    </button>
+                  </div>
+                )}
+
+                {current.aiAnswer && (
+                  <div className="ai-answer">
+                    <div className="ai-header">🤖 AI Answer</div>
+                    <div className="ai-content">{current.aiAnswer}</div>
                   </div>
                 )}
               </div>
@@ -384,6 +435,50 @@ const { socket, connected } = useSocket(
                 {s.name}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* QR CODE MODAL - TEACHER ONLY */}
+        {showQRModal && (
+          <div className="qr-modal-overlay" onClick={() => setShowQRModal(false)}>
+            <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="qr-modal-header">
+                <h2>Share QR Code</h2>
+                <button
+                  className="qr-modal-close"
+                  onClick={() => setShowQRModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="qr-modal-body">
+                <div className="qr-display">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${getQRCodeUrl()}`}
+                    alt="QR Code"
+                    className="qr-image-large"
+                  />
+                </div>
+                <div className="qr-info-modal">
+                  <p className="qr-text">Students can scan this QR code to submit questions without joining the session.</p>
+                  <div className="qr-url-box">
+                    <span className="qr-url-label">Link:</span>
+                    <code>{`http://${serverIp}:${serverPort}/ask/${sessionCode}`}</code>
+                  </div>
+                  <button className="qr-copy-btn-modal" onClick={handleCopyQRLink}>
+                    {showQRCopied ? (
+                      <>
+                        <Check size={16} /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} /> Copy Link
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
