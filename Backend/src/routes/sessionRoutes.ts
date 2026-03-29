@@ -42,6 +42,7 @@ export default function sessionRoutes(io: SocketIOServer) {
     }
   });
 
+  
   // Get session by code
   router.get("/session/:code", async (req: any, res: any) => {
     try {
@@ -205,18 +206,3 @@ export default function sessionRoutes(io: SocketIOServer) {
 
   return router;
 }
-
-    session.status = "ended";
-    await session.save();
-
-    res.status(200).json({
-      message: "Session ended",
-      session
-    });
-  } catch (error) {
-    console.error("Error ending session:", error);
-    res.status(500).json({ message: "Failed to end session" });
-  }
-});
-
-export default router;
