@@ -85,7 +85,7 @@ POST /session/create-session
 GET  /session/:code
 ```
 
-📖 Full API → [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
+📖 Full API → [/docs/API_DOCUMENTATION.md](API_DOCUMENTATION.md)
 
 ---
 
