@@ -9,9 +9,7 @@ type Student = {
   id: string;
   name: string;
   joinedAt: string;
-  leftAt?: string;
 };
-
 
 type Question = {
   id: string;
@@ -24,6 +22,7 @@ type Question = {
   aiAnswer?: string;
   aiAnsweredAt?: string;
 };
+
 type SessionItem = {
   code: string;
   name: string;
@@ -31,13 +30,7 @@ type SessionItem = {
   createdAt: string;
   status?: "active" | "ended";
   students?: Student[];
-
-  // 🔥 ADD THESE
-  questions?: Question[];
-  startTime?: string;
-  endTime?: string;
 };
-
 
 export default function Session() {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -82,38 +75,42 @@ const { socket, connected } = useSocket(
     if (!socket) return;
 
     socket.on('load-questions', setQuestions);
-   socket.on('new-question', (q: Question) => {
-  setQuestions(prev => {
-    const updatedQuestions = [...prev, q];
-
-    // 🔥 update localStorage
-    const sessions = JSON.parse(localStorage.getItem("sessions") || "[]");
-
-    const updatedSessions = sessions.map((s: any) => {
-      if (s.code === sessionCode) {
-        return {
-          ...s,
-          questions: updatedQuestions // store questions
-        };
-      }
-      return s;
-    });
-
-    localStorage.setItem("sessions", JSON.stringify(updatedSessions));
-
-    return updatedQuestions;
-  });
-});
+    socket.on('new-question', (q: Question) =>
+      setQuestions(prev => [...prev, q])
+    );
     socket.on('new-answer', (q: Question) =>
       setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
     );
+    socket.on('ai-answer', (data: { questionId: string; question: string; answer: string; source: string }) => {
+      setQuestions(prev => prev.map(q =>
+        q.id === data.questionId
+          ? { ...q, aiAnswer: data.answer }
+          : q
+      ));
+      setAiLoading(null);
+      toast.success('AI answer received!');
+    });
+    socket.on('student-joined', (studentName: string) => {
+      toast.success(`${studentName} joined the session`);
+    });
+    socket.on('student-left', (studentName: string) => {
+      toast.error(`${studentName} left the session`);
+    });
+    socket.on('update-students', (studentList: string[]) => {
+      setStudents(studentList.map(name => ({
+        id: name,
+        name: name,
+        joinedAt: new Date().toISOString()
+      })));
+    });
     socket.on('session-ended', () => {
-     if(role === "student"){
+      setEnded(true);
       toast.error('Session has been ended by the teacher');
-      setTimeout(() => {
-        navigate('/student');
-      }, 2000);
-    }
+      if (role === 'student') {
+        setTimeout(() => {
+          navigate('/student');
+        }, 2000);
+      }
     });
     socket.on('session-paused-toggled', (paused: boolean) => {
       setIsPaused(paused);
@@ -128,35 +125,80 @@ const { socket, connected } = useSocket(
       socket.off('load-questions');
       socket.off('new-question');
       socket.off('new-answer');
+      socket.off('ai-answer');
+      socket.off('student-joined');
+      socket.off('student-left');
+      socket.off('update-students');
       socket.off('session-ended');
       socket.off('session-paused-toggled');
     };
-  }, [socket]);
+  }, [socket, role, navigate]);
 
-  // LOAD SESSION
- useEffect(() => {
-  const sessions: any[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-  const found = sessions.find(s => s.code === sessionCode);
+  useEffect(() => {
+    if (questions.length > 0 && currentSlideIndex === null) {
+      setCurrentSlideIndex(0);
+    }
+    if (currentSlideIndex !== null && currentSlideIndex >= questions.length) {
+      setCurrentSlideIndex(questions.length - 1);
+    }
+  }, [questions, currentSlideIndex]);
 
-  if (!found) return setSession(null);
 
-  // 🔥 ADD START TIME IF NOT EXISTS
-  if (!found.startTime) {
-    found.startTime = new Date().toISOString();
+  // AUTO JOIN & LOAD SESSION
+  useEffect(() => {
+    if (!sessionCode) return;
 
-    const updated = sessions.map(s =>
-      s.code === sessionCode ? found : s
-    );
+    const fetchSession = async () => {
+      try {
+        // Try to fetch from backend database first
+        const response = await fetch(`http://localhost:5000/session/${sessionCode}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
 
-    localStorage.setItem("sessions", JSON.stringify(updated));
-  }
+        if (response.ok) {
+          const data = await response.json();
+          setSession(data.session);
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching session from backend:", error);
+      }
 
-  if (found.status === "ended") setEnded(true);
+      // Fallback to localStorage
+      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
+      const current = sessions.find(s => s.code === sessionCode);
 
-  setSession(found);
-  setStudents(found.students || []);
-}, [sessionCode]);
-  // AUTO JOIN
+      if (current) {
+        setSession(current);
+      }
+    };
+
+    fetchSession();
+  }, [sessionCode]);
+
+  // Fetch server IP for mobile access
+  useEffect(() => {
+    const fetchServerIp = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/server-ip");
+        if (response.ok) {
+          const data = await response.json();
+          setServerIp(data.ip);
+          setServerPort(data.port);
+        }
+      } catch (error) {
+        console.error("Error fetching server IP:", error);
+        // Fallback to localhost if error
+      }
+    };
+
+    fetchServerIp();
+  }, []);
+
+  // Handle student joining (via socket)
   useEffect(() => {
     if (!session || !sessionCode || role !== "student") return;
 
@@ -171,7 +213,7 @@ const { socket, connected } = useSocket(
 
   // ACTIONS
   const handleSendQuestion = () => {
-    if (!newQuestion.trim() || !socket || isPaused) return;
+    if (!newQuestion.trim() || !socket || isPaused) return;//added isPaused check to prevent sending questions when session is paused
 
     socket.emit('send-question', {
       sessionCode,
@@ -193,55 +235,67 @@ const { socket, connected } = useSocket(
     setAnswerText('');
   };
 
-  const handleStudentLeave = () => {
-  const sessions = JSON.parse(localStorage.getItem("sessions") || "[]");
+  const handleAskAI = async (questionId: string) => {
+    if (!sessionCode || aiLoading) return;
 
-  const updated = sessions.map((s: any) => {
-    if (s.code === sessionCode) {
-      return {
-        ...s,
-        students: (s.students || []).map((stu: any) =>
-          stu.name === userInfo.name
-            ? {
-                ...stu,
-                leftAt: new Date().toISOString() // ✅ SAVE LEAVE TIME
-              }
-            : stu
-        )
-      };
+    setAiLoading(questionId);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:5000/session/${sessionCode}/question/${questionId}/ask-ai`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.message || "Failed to get AI answer");
+        setAiLoading(null);
+      }
+      // Success will be handled by socket event
+    } catch (error) {
+      console.error("Error asking AI:", error);
+      toast.error("Network error while asking AI");
+      setAiLoading(null);
     }
-    return s;
-  });
+  };
 
-  localStorage.setItem("sessions", JSON.stringify(updated));
-
+  // Update handleStudentLeave in Session.tsx:
+const handleStudentLeave = () => {
+  if (socket && role === "student") {
+    socket.emit('student-leave', { sessionCode });
+  }
   navigate("/student");
 };
 
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
     if (socket && role === "teacher") {
       socket.emit('end-session', { sessionCode });
+      
+      // Also update backend
+      try {
+        await fetch(`http://localhost:5000/session/${sessionCode}/end`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          }
+        });
+      } catch (error) {
+        console.error("Error ending session in backend:", error);
+      }
     }
 
+    // Update localStorage backup
     const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-
-   const updated = sessions.map(s =>
-  s.code === sessionCode
-    ? {
-        ...s,
-        status: "ended",
-        endTime: new Date().toISOString() // 🔥 ADD THIS
-      }
-    : s
-);
-
+    const updated = sessions.map(s =>
+      s.code === sessionCode ? { ...s, status: "ended" } : s
+    );
     localStorage.setItem("sessions", JSON.stringify(updated));
-    
-    if (role === "teacher") {
-    navigate(`/summary/${sessionCode}`);
-  } else {
-    navigate("/student");
-  }
+    setEnded(true);
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
   };
 
   const handleTogglePause = () => {
