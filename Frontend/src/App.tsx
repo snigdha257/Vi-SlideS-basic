@@ -7,6 +7,7 @@ import Student from "./components/student";
 import Teacher from "./components/teacher";
 import Session from "./components/Session";
 import SessionSummary from "./components/SessionSummary";
+import PublicAsk from "./components/PublicAsk";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/teacher" element={<Teacher />} />
         <Route path="/session/:sessionCode" element={<Session />} />
         <Route path="/session-summary/:sessionId" element={<SessionSummary />} />
+        <Route path="/ask/:sessionCode" element={<PublicAsk />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </BrowserRouter>

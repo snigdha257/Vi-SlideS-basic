@@ -19,6 +19,15 @@ const questionSchema = new mongoose.Schema({
   },
   answer: {
     type: String
+  },
+  email: {
+    type: String,
+    default: null
+  },
+  source: {
+    type: String,
+    enum: ["session", "qr"],
+    default: "session"
   }
 });
 

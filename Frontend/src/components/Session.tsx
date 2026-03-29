@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSocket } from '../hooks/useSocket';
 import "../styles/session.css";
@@ -17,6 +17,8 @@ type Question = {
   question: string;
   timestamp: string;
   answer?: string;
+  email?: string;
+  source?: string;
 };
 
 type SessionItem = {
@@ -39,6 +41,10 @@ export default function Session() {
   const [students, setStudents] = useState<Student[]>([]);
   const [session, setSession] = useState<SessionItem | null>(null);
   const [ended, setEnded] = useState(false);
+  const [showQRCopied, setShowQRCopied] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [serverIp, setServerIp] = useState("localhost");
+  const [serverPort, setServerPort] = useState("5000");
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
@@ -63,58 +69,68 @@ const { socket, connected } = useSocket(
 
   // SOCKET
   useEffect(() => {
-  if (!socket) return;
+    if (!socket) return;
 
-  socket.on('load-questions', setQuestions);
-  socket.on('new-question', (q: Question) =>
-    setQuestions(prev => [...prev, q])
-  );
-  socket.on('new-answer', (q: Question) =>
-    setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
-  );
-  socket.on('student-joined', (studentName: string) => {
-    toast.success(`${studentName} joined the session`);
-  });
-  socket.on('student-left', (studentName: string) => {
-    toast.error(`${studentName} left the session`);
-  });
-  //update-students listener added to update students list in real-time
-  socket.on('update-students', (studentList: string[]) => {
-    setStudents(studentList.map(name => ({
-      id: name,
-      name: name,
-      joinedAt: new Date().toISOString()
-    })));
-  });
-  socket.on('session-ended', () => {
-    setEnded(true);
-    toast.error('Session has been ended by the teacher');
-    if(role === 'student') {
-      setTimeout(() => {
-        navigate('/student');
-      }, 2000);
-    }
-  });
-  socket.on('session-paused-toggled', (paused: boolean) => {
-    setIsPaused(paused);
-    if (paused) {
-      toast.error('Session has been paused');
-    } else {
-      toast.success('Session has been resumed');
-    }
-  });
+    socket.on('load-questions', setQuestions);
+    socket.on('new-question', (q: Question) =>
+      setQuestions(prev => [...prev, q])
+    );
+    socket.on('new-answer', (q: Question) =>
+      setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
+    );
+    socket.on('student-joined', (studentName: string) => {
+      toast.success(`${studentName} joined the session`);
+    });
+    socket.on('student-left', (studentName: string) => {
+      toast.error(`${studentName} left the session`);
+    });
+    socket.on('update-students', (studentList: string[]) => {
+      setStudents(studentList.map(name => ({
+        id: name,
+        name: name,
+        joinedAt: new Date().toISOString()
+      })));
+    });
+    socket.on('session-ended', () => {
+      setEnded(true);
+      toast.error('Session has been ended by the teacher');
+      if (role === 'student') {
+        setTimeout(() => {
+          navigate('/student');
+        }, 2000);
+      }
+    });
+    socket.on('session-paused-toggled', (paused: boolean) => {
+      setIsPaused(paused);
+      if (paused) {
+        toast.error('Session has been paused');
+      } else {
+        toast.success('Session has been resumed');
+      }
+    });
 
-  return () => {
-    socket.off('load-questions');
-    socket.off('new-question');
-    socket.off('new-answer');
-    socket.off('student-joined');
-    socket.off('student-left');
-    socket.off('update-students');//added off for update-students
-    socket.off('session-ended');
-    socket.off('session-paused-toggled');
-  };
-}, [socket]);
+    return () => {
+      socket.off('load-questions');
+      socket.off('new-question');
+      socket.off('new-answer');
+      socket.off('student-joined');
+      socket.off('student-left');
+      socket.off('update-students');
+      socket.off('session-ended');
+      socket.off('session-paused-toggled');
+    };
+  }, [socket, role, navigate]);
+
+  useEffect(() => {
+    if (questions.length > 0 && currentSlideIndex === null) {
+      setCurrentSlideIndex(0);
+    }
+    if (currentSlideIndex !== null && currentSlideIndex >= questions.length) {
+      setCurrentSlideIndex(questions.length - 1);
+    }
+  }, [questions, currentSlideIndex]);
+
+
   // AUTO JOIN & LOAD SESSION
   useEffect(() => {
     if (!sessionCode) return;
@@ -149,6 +165,25 @@ const { socket, connected } = useSocket(
 
     fetchSession();
   }, [sessionCode]);
+
+  // Fetch server IP for mobile access
+  useEffect(() => {
+    const fetchServerIp = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/server-ip");
+        if (response.ok) {
+          const data = await response.json();
+          setServerIp(data.ip);
+          setServerPort(data.port);
+        }
+      } catch (error) {
+        console.error("Error fetching server IP:", error);
+        // Fallback to localhost if error
+      }
+    };
+
+    fetchServerIp();
+  }, []);
 
   // Handle student joining (via socket)
   useEffect(() => {
@@ -229,6 +264,20 @@ const handleStudentLeave = () => {
     }
   };
 
+  // Generate QR code URL
+  const getQRCodeUrl = () => {
+    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+    return encodeURIComponent(qrUrl);
+  };
+
+  const handleCopyQRLink = () => {
+    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+    navigator.clipboard.writeText(qrUrl);
+    setShowQRCopied(true);
+    setTimeout(() => setShowQRCopied(false), 2000);
+    toast.success("QR link copied to clipboard!");
+  };
+
   if (!session) return <div className="center-msg">Session not found</div>;
   if (ended && role !== "teacher") return <div className="center-msg">Session ended</div>;
 
@@ -245,6 +294,13 @@ const handleStudentLeave = () => {
           <div className="actions">
             {role === "teacher" && (
               <>
+                <button
+                  className="btn-qr"
+                  onClick={() => setShowQRModal(true)}
+                  title="Show QR code for students to scan"
+                >
+                  📱
+                </button>
                 <button
                   className={isPaused ? "btn-success" : "btn-warning"}
                   onClick={handleTogglePause}
@@ -271,13 +327,16 @@ const handleStudentLeave = () => {
           {questions.map((q, index) => (
             <div
               key={q.id}
-              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""}`}
+              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""} ${q.source === "qr" ? "qr-source" : ""}`}
               onClick={() => {
                 setCurrentSlideIndex(index);
                 setShowSidebar(false);
               }}
             >
-              <strong>{q.studentName}</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                <strong>{q.studentName}</strong>
+                {q.source === "qr" && <span className="qr-badge">QR</span>}
+              </div>
               <p>{q.question}</p>
             </div>
           ))}
@@ -299,8 +358,12 @@ const handleStudentLeave = () => {
           ) : (
             <div className="qa-box">
               <div className="question" key={current.id}>
-                <span className="student">{current?.studentName}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "8px" }}>
+                  <span className="student">{current?.studentName}</span>
+                  {current?.source === "qr" && <span className="qr-badge">QR Submission</span>}
+                </div>
                 <p>{current?.question}</p>
+                {current?.email && <p className="question-email">Email: {current.email}</p>}
 
                 {current.answer ? (
                   <div className="answer">{current.answer}</div>
@@ -372,6 +435,50 @@ const handleStudentLeave = () => {
                 {s.name}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* QR CODE MODAL - TEACHER ONLY */}
+        {showQRModal && (
+          <div className="qr-modal-overlay" onClick={() => setShowQRModal(false)}>
+            <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="qr-modal-header">
+                <h2>Share QR Code</h2>
+                <button
+                  className="qr-modal-close"
+                  onClick={() => setShowQRModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="qr-modal-body">
+                <div className="qr-display">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${getQRCodeUrl()}`}
+                    alt="QR Code"
+                    className="qr-image-large"
+                  />
+                </div>
+                <div className="qr-info-modal">
+                  <p className="qr-text">Students can scan this QR code to submit questions without joining the session.</p>
+                  <div className="qr-url-box">
+                    <span className="qr-url-label">Link:</span>
+                    <code>{`http://${serverIp}:${serverPort}/ask/${sessionCode}`}</code>
+                  </div>
+                  <button className="qr-copy-btn-modal" onClick={handleCopyQRLink}>
+                    {showQRCopied ? (
+                      <>
+                        <Check size={16} /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} /> Copy Link
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
