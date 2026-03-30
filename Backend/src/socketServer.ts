@@ -22,6 +22,11 @@ interface ActiveSession {
 }
 
 const activeSessions: ActiveSession = {};
+const EMPTY_MOOD_RESPONSES = {
+  understood: 0,
+  okay: 0,
+  confused: 0
+};
 
 export const createSocketServer = (httpServer: HTTPServer) => {
   const io = new SocketIOServer(httpServer, {
@@ -69,30 +74,36 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       };
     }
 
+    let currentMoodState: any = null;
+
     try {
       const dbSession = await Session.findOne({ code: sessionCode });
-      if (dbSession && dbSession.questions) {
-        const loadedFromDb = dbSession.questions.map((q: any) => ({
-          id: q.id,
-          studentName: q.studentName,
-          question: q.question,
-          timestamp: q.timestamp?.toISOString ? q.timestamp.toISOString() : q.timestamp,
-          answer: q.answer,
-          email: q.email,
-          source: q.source || "session",
-          aiAnswer: q.aiAnswer,//added aiAnswer and aiAnsweredAt mapping
-          aiAnsweredAt: q.aiAnsweredAt?.toISOString ? q.aiAnsweredAt.toISOString() : q.aiAnsweredAt
-        }));
+      if (dbSession) {
+        currentMoodState = dbSession.mood || null;
 
-        const existingIds = new Set(activeSessions[sessionCode as string].questions.map(q => q.id));
-        const merged = [
-          ...activeSessions[sessionCode as string].questions,
-          ...loadedFromDb.filter(q => !existingIds.has(q.id))
-        ];
+        if (dbSession.questions) {
+          const loadedFromDb = dbSession.questions.map((q: any) => ({
+            id: q.id,
+            studentName: q.studentName,
+            question: q.question,
+            timestamp: q.timestamp?.toISOString ? q.timestamp.toISOString() : q.timestamp,
+            answer: q.answer,
+            email: q.email,
+            source: q.source || "session",
+            aiAnswer: q.aiAnswer,
+            aiAnsweredAt: q.aiAnsweredAt?.toISOString ? q.aiAnsweredAt.toISOString() : q.aiAnsweredAt
+          }));
 
-        activeSessions[sessionCode as string].questions = merged;
-        if (loadedFromDb.length > 0) {
-          console.log(`Updated active session ${sessionCode} with ${loadedFromDb.length} DB questions`);
+          const existingIds = new Set(activeSessions[sessionCode as string].questions.map(q => q.id));
+          const merged = [
+            ...activeSessions[sessionCode as string].questions,
+            ...loadedFromDb.filter(q => !existingIds.has(q.id))
+          ];
+
+          activeSessions[sessionCode as string].questions = merged;
+          if (loadedFromDb.length > 0) {
+            console.log(`Updated active session ${sessionCode} with ${loadedFromDb.length} DB questions`);
+          }
         }
 
         // Keep DB pause value if exists
@@ -145,6 +156,97 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     socket.emit('load-questions', activeSessions[sessionCode as string].questions);
     socket.emit('session-paused-toggled', activeSessions[sessionCode as string].isPaused);
 
+    if (currentMoodState?.active) {
+      socket.emit('mood-started');
+      socket.emit('mood-update', currentMoodState.responses || EMPTY_MOOD_RESPONSES);
+    }
+
+    socket.on("start-mood-check", async ({ sessionCode }) => {
+      try {
+        const session = await Session.findOne({ code: sessionCode });
+        if (!session) return;
+
+        session.mood = {
+          active: true,
+          responses: { ...EMPTY_MOOD_RESPONSES },
+          respondedStudents: []
+        };
+        session.moodSummary = null;
+        session.markModified("mood");
+        session.markModified("moodSummary");
+
+        await session.save();
+
+        io.to(sessionCode).emit("mood-started");
+        io.to(sessionCode).emit("mood-update", session.mood.responses || EMPTY_MOOD_RESPONSES);
+      } catch (err) {
+        console.error("Mood start error:", err);
+      }
+    });
+
+    socket.on("submit-mood", async ({ sessionCode, mood, studentName }: any) => {
+      try {
+        const session = await Session.findOne({ code: sessionCode });
+        if (!session || !session.mood?.active) return;
+        if (!studentName || !["understood", "okay", "confused"].includes(mood)) return;
+
+        // prevent multiple responses
+        if (session.mood.respondedStudents.includes(studentName)) return;
+
+        session.mood.respondedStudents.push(studentName);
+
+        if (!session.mood.responses) {
+          session.mood.responses = { ...EMPTY_MOOD_RESPONSES };
+        }
+
+        if (mood === "understood") session.mood.responses.understood += 1;
+        else if (mood === "okay") session.mood.responses.okay += 1;
+        else if (mood === "confused") session.mood.responses.confused += 1;
+
+        session.markModified("mood");
+        await session.save();
+
+        io.to(sessionCode).emit("mood-update", session.mood.responses || EMPTY_MOOD_RESPONSES);
+      } catch (err) {
+        console.error("Mood submit error:", err);
+      }
+    });
+
+    socket.on("end-mood-check", async ({ sessionCode }) => {
+      try {
+        const session = await Session.findOne({ code: sessionCode });
+        if (!session || !session.mood) return;
+
+        const { understood = 0, okay = 0, confused = 0 } = session.mood.responses || EMPTY_MOOD_RESPONSES;
+        const totalResponses = understood + okay + confused;
+
+        let finalMood = "Neutral 😐";
+
+        if (confused > understood && confused > okay) {
+          finalMood = "Confused 😟";
+        } else if (understood > confused && understood > okay) {
+          finalMood = "Comfortable 😊";
+        }
+
+        session.moodSummary = {
+          totalResponses,
+          understood,
+          okay,
+          confused,
+          finalMood
+        };
+
+        session.mood.active = false;
+        session.markModified("mood");
+        session.markModified("moodSummary");
+
+        await session.save();
+
+        io.to(sessionCode).emit("mood-ended", session.moodSummary);
+      } catch (err) {
+        console.error("Mood end error:", err);
+      }
+    });
     // Handle new question
     socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
       if (!activeSessions[data.sessionCode]) return;
@@ -153,7 +255,9 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         studentName: userName as string,
         question: data.question,
         timestamp: new Date().toISOString(),
-        source: "session"
+        source: "session",
+        aiAnswer: undefined,
+        aiAnsweredAt: undefined
       };
 
       activeSessions[data.sessionCode].questions.push(newQuestion);

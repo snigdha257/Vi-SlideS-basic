@@ -25,13 +25,15 @@ const SessionSummary = () => {
 
         const totalQuestions = session.questions?.length || 0;
         const totalStudents = session.students?.length || 0;
+        const moodSummary = session.moodSummary || {};
 
         setData({
           totalQuestions,
           totalStudents,
           duration: session.duration || "N/A",
           students: session.students || [],
-          questions: session.questions || []
+          questions: session.questions || [],
+          moodSummary
         });
       } catch (err) {
         console.log("Error fetching session", err);
@@ -54,7 +56,8 @@ const SessionSummary = () => {
             totalStudents: found.students?.length || 0,
             duration,
             students: found.students || [],
-            questions: found.questions || []
+            questions: found.questions || [],
+            moodSummary: found.moodSummary || {}
           });
         } else {
           console.log("Session not found");
@@ -64,6 +67,20 @@ const SessionSummary = () => {
 
     fetchData();
   }, [sessionId]);
+
+  const getMajorityMoods = (moodSummary: any) => {
+  const understood = moodSummary?.understood || 0;
+  const okay = moodSummary?.okay || 0;
+  const confused = moodSummary?.confused || 0;
+
+  if (understood === 0 && okay === 0 && confused === 0) {
+    return "";
+  }
+
+  if (understood >= okay && understood >= confused) return "understood";
+  if (okay >= understood && okay >= confused) return "okay";
+  return "confused";
+};
 
   const downloadSummaryPDF = () => {
     const doc = new jsPDF();
@@ -140,6 +157,23 @@ return (
         <div className="summary-card-title">Duration</div>
         <div className="summary-card-value">{data.duration}</div>
       </div>
+
+     {/* CLASS MOOD (MAJORITY) */}
+{data.moodSummary && data.moodSummary.totalResponses > 0 && (
+  <div className="summary-card">
+    <div className="summary-card-title">Class Mood</div>
+    <div className="summary-card-value" >
+       {getMajorityMoods(data.moodSummary) === "understood"
+        ? "EXCELLENT 👌"
+        : getMajorityMoods(data.moodSummary) === "okay"
+        ? "GOOD 🙂"
+        : getMajorityMoods(data.moodSummary) === "confused"
+        ? "OKAY 👍"
+        : "No responses yet"
+      }
+    </div>
+  </div>
+)}
     </div>
 
     {/* ATTENDANCE */}
@@ -152,6 +186,31 @@ return (
           <li key={index}>{s.name}</li>
         ))}
       </ul>
+    )}
+
+    {/* MOOD SUMMARY - AT THE BOTTOM */}
+    {data.moodSummary?.totalResponses >= 0 && (
+      <div className="mood-summary-section">
+        <h2>Class Mood Check Results</h2>
+        <div className="mood-summary-grid">
+          <div className={`mood-summary-item understood ${getMajorityMoods(data.moodSummary) === 'understood' ? 'highlighted' : ''}`}>
+            <div className="mood-summary-emoji">👍</div>
+            <div className="mood-summary-label">Understood</div>
+            <div className="mood-summary-count">{data.moodSummary.understood}</div>
+          </div>
+          <div className={`mood-summary-item okay ${getMajorityMoods(data.moodSummary) === 'okay' ? 'highlighted' : ''}`}>
+            <div className="mood-summary-emoji">😐</div>
+            <div className="mood-summary-label">Okay</div>
+            <div className="mood-summary-count">{data.moodSummary.okay}</div>
+          </div>
+          <div className={`mood-summary-item confused ${getMajorityMoods(data.moodSummary) === 'confused' ? 'highlighted' : ''}`}>
+            <div className="mood-summary-emoji">👎</div>
+            <div className="mood-summary-label">Confused</div>
+            <div className="mood-summary-count">{data.moodSummary.confused}</div>
+          </div>
+        </div>
+        <div className="mood-summary-total">Total Responses: {data.moodSummary.totalResponses}</div>
+      </div>
     )}
 
     {/* BUTTONS */}
@@ -173,6 +232,7 @@ return (
     </div>
   </div>
 );
+
 
 
 };

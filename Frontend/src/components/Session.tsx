@@ -46,7 +46,7 @@ export default function Session() {
   const [showQRCopied, setShowQRCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [serverIp, setServerIp] = useState("localhost");
-  const [serverPort, setServerPort] = useState("5000");
+
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
@@ -54,6 +54,9 @@ export default function Session() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null); // questionId being processed by AI
+  const [moodCheckActive, setMoodCheckActive] = useState(false);
+  const [moodResponses, setMoodResponses] = useState({ understood: 0, okay: 0, confused: 0 });
+  const [studentMoodSubmitted, setStudentMoodSubmitted] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
@@ -120,6 +123,21 @@ const { socket, connected } = useSocket(
         toast.success('Session has been resumed');
       }
     });
+    socket.on('mood-started', () => {
+      setMoodCheckActive(true);
+      setMoodResponses({ understood: 0, okay: 0, confused: 0 });
+      setStudentMoodSubmitted(false);
+      toast.success('Class Mood Check Started! Please respond.');
+    });
+    socket.on('mood-update', (responses: { understood: number; okay: number; confused: number }) => {
+      setMoodResponses(responses);
+    });
+    socket.on('mood-ended', (summary?: { understood: number; okay: number; confused: number }) => {
+      setMoodCheckActive(false);
+      setMoodResponses(summary || { understood: 0, okay: 0, confused: 0 });
+      setStudentMoodSubmitted(false);
+      toast.success('Mood check ended');
+    });
 
     return () => {
       socket.off('load-questions');
@@ -131,6 +149,9 @@ const { socket, connected } = useSocket(
       socket.off('update-students');
       socket.off('session-ended');
       socket.off('session-paused-toggled');
+      socket.off('mood-started');
+      socket.off('mood-update');
+      socket.off('mood-ended');
     };
   }, [socket, role, navigate]);
 
@@ -187,7 +208,6 @@ const { socket, connected } = useSocket(
         if (response.ok) {
           const data = await response.json();
           setServerIp(data.ip);
-          setServerPort(data.port);
         }
       } catch (error) {
         console.error("Error fetching server IP:", error);
@@ -304,14 +324,44 @@ const handleStudentLeave = () => {
     }
   };
 
+  const handleStartMoodCheck = () => {
+    if (socket && role === "teacher") {
+      socket.emit('start-mood-check', { sessionCode });
+    }
+  };
+
+  const handleEndMoodCheck = () => {
+    if (socket && role === "teacher") {
+      socket.emit('end-mood-check', { sessionCode });
+    }
+  };
+
+  const handleSubmitMood = (mood: 'understood' | 'okay' | 'confused') => {
+    if (socket && !studentMoodSubmitted) {
+      socket.emit('submit-mood', { sessionCode, mood, studentName: name });
+      setStudentMoodSubmitted(true);
+      toast.success(`Mood recorded: ${mood}`);
+    }
+  };
+
   // Generate QR code URL
   const getQRCodeUrl = () => {
-    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+    const qrUrl = `http://${serverIp}:5173/ask/${sessionCode}`;
     return encodeURIComponent(qrUrl);
   };
 
+  const getMajorityMoods = () => {
+    const max = Math.max(moodResponses.understood, moodResponses.okay, moodResponses.confused);
+    if (max === 0) return [];
+    const moods: string[] = [];
+    if (moodResponses.understood === max) moods.push('understood');
+    if (moodResponses.okay === max) moods.push('okay');
+    if (moodResponses.confused === max) moods.push('confused');
+    return moods;
+  };
+
   const handleCopyQRLink = () => {
-    const qrUrl = `http://${serverIp}:${serverPort}/ask/${sessionCode}`;
+      const qrUrl = `http://${serverIp}:5173/ask/${sessionCode}`;
     navigator.clipboard.writeText(qrUrl);
     setShowQRCopied(true);
     setTimeout(() => setShowQRCopied(false), 2000);
@@ -325,9 +375,31 @@ const handleStudentLeave = () => {
 
   return (
     <div className="session-page">
-      <div className="session-container">
+      {/* Q&A SIDEBAR - MUST BE OUTSIDE CONTAINER */}
+      <div className={`qa-sidebar ${showSidebar ? "open" : ""}`}>
+        <h3>Questions</h3>
+        {questions.map((q, index) => (
+          <div
+            key={q.id}
+            className={`sidebar-item ${currentSlideIndex === index ? "active" : ""} ${q.source === "qr" ? "qr-source" : ""}`}
+            onClick={() => {
+              setCurrentSlideIndex(index);
+              setShowSidebar(false);
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+              <strong>{q.studentName}</strong>
+              {q.source === "qr" && <span className="qr-badge">QR</span>}
+            </div>
+            <p>{q.question}</p>
+          </div>
+        ))}
+      </div>
+      {showSidebar && (
+        <div className="overlay" onClick={() => setShowSidebar(false)} />
+      )}
 
-        {/* HEADER */}
+      <div className="session-container">
         <header className="session-topbar">
           <span className="session-title">Code: {sessionCode}</span>
           <span className="session-title">{session.name}</span>
@@ -347,6 +419,15 @@ const handleStudentLeave = () => {
                 >
                   {isPaused ? "Resume" : "Pause"}
                 </button>
+                {moodCheckActive ? (
+                  <button className="btn-secondary" onClick={handleEndMoodCheck}>
+                    End Mood Check
+                  </button>
+                ) : (
+                  <button className="btn-info" onClick={handleStartMoodCheck}>
+                    😊 Mood Check
+                  </button>
+                )}
                 <button className="btn-danger" onClick={handleEndSession}>End</button>
               </>
             )}
@@ -361,29 +442,7 @@ const handleStudentLeave = () => {
           </div>
         </header>
 
-        {/* Q&A */}
-        <div className={`qa-sidebar ${showSidebar ? "open" : ""}`}>
-          <h3>Questions</h3>
-          {questions.map((q, index) => (
-            <div
-              key={q.id}
-              className={`sidebar-item ${currentSlideIndex === index ? "active" : ""} ${q.source === "qr" ? "qr-source" : ""}`}
-              onClick={() => {
-                setCurrentSlideIndex(index);
-                setShowSidebar(false);
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                <strong>{q.studentName}</strong>
-                {q.source === "qr" && <span className="qr-badge">QR</span>}
-              </div>
-              <p>{q.question}</p>
-            </div>
-          ))}
-        </div>
-        {showSidebar && (
-          <div className="overlay" onClick={() => setShowSidebar(false)} />
-        )}
+        {/* MAIN CONTENT */}
         <div className="card">
           <div className="card-title">
             <button onClick={() => setShowSidebar(true)} className="card-btn">☰</button>
@@ -457,7 +516,51 @@ const handleStudentLeave = () => {
             </div>
           )}
 
-          {role === "student" && (
+          {role === "student" && moodCheckActive && (
+            <div className="mood-check-container">
+              <div className="mood-prompt">How are you feeling about the content?</div>
+              <div className="mood-buttons">
+                <button
+                  className="mood-btn understood"
+                  onClick={() => handleSubmitMood('understood')}
+                  disabled={studentMoodSubmitted}
+                >
+                  👍 Understood
+                </button>
+                <button
+                  className="mood-btn okay"
+                  onClick={() => handleSubmitMood('okay')}
+                  disabled={studentMoodSubmitted}
+                >
+                  😐 Okay
+                </button>
+                <button
+                  className="mood-btn confused"
+                  onClick={() => handleSubmitMood('confused')}
+                  disabled={studentMoodSubmitted}
+                >
+                  👎 Confused
+                </button>
+              </div>
+            </div>
+          )}
+          {role === "teacher" && moodCheckActive && (
+            <div className="mood-display-teacher">
+              <div className="mood-header">Live Mood Responses</div>
+              <div className="mood-stats">
+                <div className={`mood-stat ${getMajorityMoods().includes('understood') ? 'highlighted' : ''}`}>
+                  👍 Understood: {moodResponses.understood}
+                </div>
+                <div className={`mood-stat ${getMajorityMoods().includes('okay') ? 'highlighted' : ''}`}>
+                  😐 Okay: {moodResponses.okay}
+                </div>
+                <div className={`mood-stat ${getMajorityMoods().includes('confused') ? 'highlighted' : ''}`}>
+                  👎 Confused: {moodResponses.confused}
+                </div>
+              </div>
+            </div>
+          )}
+          {role === "student" && !moodCheckActive && (
             <div className={`input-row ${isPaused ? "paused-input" : ""}`}>
               <input
                 className="input"
@@ -517,7 +620,7 @@ const handleStudentLeave = () => {
                   <p className="qr-text">Students can scan this QR code to submit questions without joining the session.</p>
                   <div className="qr-url-box">
                     <span className="qr-url-label">Link:</span>
-                    <code>{`http://${serverIp}:${serverPort}/ask/${sessionCode}`}</code>
+                    <code>{`http://${serverIp}:5173/ask/${sessionCode}`}</code>
                   </div>
                   <button className="qr-copy-btn-modal" onClick={handleCopyQRLink}>
                     {showQRCopied ? (

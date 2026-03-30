@@ -51,6 +51,63 @@ const studentSchema = new mongoose.Schema({
   }
 });
 
+const moodResponsesSchema = new mongoose.Schema({
+  understood: {
+    type: Number,
+    default: 0
+  },
+  okay: {
+    type: Number,
+    default: 0
+  },
+  confused: {
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
+const moodSchema = new mongoose.Schema({
+  active: {
+    type: Boolean,
+    default: false
+  },
+  responses: {
+    type: moodResponsesSchema,
+    default: () => ({
+      understood: 0,
+      okay: 0,
+      confused: 0
+    })
+  },
+  respondedStudents: {
+    type: [String],
+    default: []
+  }
+}, { _id: false });
+
+const moodSummarySchema = new mongoose.Schema({
+  totalResponses: {
+    type: Number,
+    default: 0
+  },
+  understood: {
+    type: Number,
+    default: 0
+  },
+  okay: {
+    type: Number,
+    default: 0
+  },
+  confused: {
+    type: Number,
+    default: 0
+  },
+  finalMood: {
+    type: String,
+    default: "Neutral 😐"
+  }
+}, { _id: false });
+
 const sessionSchema = new mongoose.Schema({
   code: {
     type: String,
@@ -75,8 +132,30 @@ const sessionSchema = new mongoose.Schema({
     enum: ["active", "ended"],
     default: "active"
   },
-  questions: [questionSchema],
-  students: [studentSchema],
+  questions: {
+    type: [questionSchema],
+    default: []
+  },
+  students: {
+    type: [studentSchema],
+    default: []
+  },
+  mood: {
+    type: moodSchema,
+    default: () => ({
+      active: false,
+      responses: {
+        understood: 0,
+        okay: 0,
+        confused: 0
+      },
+      respondedStudents: []
+    })
+  },
+  moodSummary: {
+    type: moodSummarySchema,
+    default: null
+  },
   startTime: {
     type: Date
   },

@@ -1,6 +1,6 @@
 /* Container */
 .summary-container {
-  padding: 30px;
+  padding: 32px;
   max-width: 1000px;
   margin: 0 auto;
   font-family: "Inter", sans-serif;
@@ -8,55 +8,64 @@
 
 /* Header */
 .summary-title {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.3px;
 }
 
 /* Cards */
 .summary-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-  margin-bottom: 25px;
+  gap: 16px;
+  margin-bottom: 28px;
 }
 
 .summary-card {
   flex: 1;
-  min-width: 200px;
-  padding: 20px;
+  min-width: 220px;
+  padding: 22px;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   text-align: center;
+  transition: all 0.25s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 .summary-card-title {
-  font-size: 14px;
+  font-size: 13px;
   color: #6b7280;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  letter-spacing: 0.4px;
 }
 
 .summary-card-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
   color: #111827;
 }
 
-/* Attendance */
+/* Attendance List */
 .summary-list {
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
   color: #111827;
-  margin-top: 10px;
-  list-style: bullet;
+  margin-top: 12px;
+  list-style: none;
 }
 
 .summary-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f1f1;
+  font-size: 14px;
 }
 
 .summary-list li:last-child {
@@ -65,9 +74,9 @@
 
 /* Buttons */
 .summary-buttons {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -84,7 +93,12 @@
 }
 
 .summary-btn:hover {
-  background-color: #1e4ed8;
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.summary-btn:active {
+  transform: scale(0.97);
 }
 
 .summary-btn.secondary {
@@ -93,4 +107,77 @@
 
 .summary-btn.secondary:hover {
   background-color: #4b5563;
+}
+
+/* MOOD SUMMARY SECTION */
+
+.mood-summary-section {
+  background: linear-gradient(135deg, #111827, #250743 100%);
+  border-radius: 14px;
+  padding: 26px;
+  margin: 28px 0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.mood-summary-section h2 {
+  color: #fff;
+  margin-bottom: 18px;
+  font-size: 1.35rem;
+  letter-spacing: 0.3px;
+}
+
+.mood-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.mood-summary-item {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.25s ease;
+}
+
+.mood-summary-item:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.mood-summary-item.highlighted {
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
+  transform: scale(1.05);
+}
+
+.mood-summary-emoji {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.mood-summary-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  letter-spacing: 0.6px;
+}
+
+.mood-summary-count {
+  font-weight: 700;
+  font-size: 1.7rem;
+}
+
+.mood-summary-total {
+  text-align: center;
+  color: #fff;
+  font-weight: 600;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
