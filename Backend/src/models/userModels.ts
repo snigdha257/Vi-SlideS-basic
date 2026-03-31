@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { rootCertificates } from "node:tls";
 const userSchema = new mongoose.Schema({
     name:{
         type:String,
@@ -7,7 +6,7 @@ const userSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        required:true,
+        required:function(this: any) { return !this.googleId; },
         enum:["student","teacher"]
     },
     email:{
@@ -17,7 +16,19 @@ const userSchema = new mongoose.Schema({
     },
     password:{
         type:String,
-        required:true
+        required:function(this: any) { return !this.googleId; }
+    },
+    googleId:{
+        type:String,
+        unique:true,
+        sparse:true
+    },
+    avatar:{
+        type:String
+    },
+    isVerified:{
+        type:Boolean,
+        default:false
     }
 });
 const User = mongoose.model("User",userSchema);
