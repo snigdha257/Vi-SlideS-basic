@@ -18,9 +18,13 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-session": "^1.19.0",
     "google-auth-library": "^10.6.2",
+    "groq-sdk": "^1.1.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "react-router-dom": "^7.13.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
@@ -29,9 +33,12 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^25.5.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-google-oauth20": "^2.0.17",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

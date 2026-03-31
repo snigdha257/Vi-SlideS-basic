@@ -25,7 +25,23 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = 
+      origin.startsWith('http://localhost') || 
+      origin.startsWith('http://127.0.0.1') || 
+      origin.startsWith('http://192.168.') ||
+      origin.match(/^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./) || // Private Class B
+      origin.startsWith('http://10.'); // Private Class A
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
