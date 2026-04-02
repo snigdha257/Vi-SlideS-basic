@@ -4,6 +4,7 @@ import Session from "../models/sessionModels";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { submitQRQuestion } from "../controllers/qrController";
 import { askAIForQuestion } from "../controllers/aiController";
+import { generateQuestionsummarY } from "../services/aiService";
 
 export default function(io: SocketIOServer) {
   const router = express.Router();
@@ -201,6 +202,35 @@ export default function(io: SocketIOServer) {
   // Ask AI for a question (teacher only)
   router.post("/session/:sessionCode/question/:questionId/ask-ai", authenticateToken, async (req: any, res: any) => {
     await askAIForQuestion(req, res, io);
+  });
+
+  // Get questions summary from AI
+  router.get("/session/:code/questions-summary", async (req: any, res: any) => {
+    try {
+      const { code } = req.params;
+
+      const session = await Session.findOne({ code });
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      if (!session.questions || session.questions.length === 0) {
+        return res.status(200).json({
+          message: "No questions in session",
+          summary: "No questions were asked during this session."
+        });
+      }
+
+      const summary = await generateQuestionsummarY(session.questions);
+
+      res.status(200).json({
+        message: "Questions summary generated",
+        summary
+      });
+    } catch (error) {
+      console.error("Error generating questions summary:", error);
+      res.status(500).json({ message: "Failed to generate summary" });
+    }
   });
 
   return router;

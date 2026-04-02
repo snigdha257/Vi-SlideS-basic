@@ -3,10 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getQuestionsSummary } from "../utils/questionSummary";
 import '../styles/sessionsummary.css'
 
 const StudentSummary = () => {
   const [data, setData] = useState<any>(null);
+  const [questionsSummary, setQuestionsSummary] = useState<string>("");
+  const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
@@ -35,6 +38,14 @@ const StudentSummary = () => {
           questions: session.questions || []
          
         });
+
+        // Fetch questions summary if there are questions
+        if (totalQuestions > 0) {
+          setSummaryLoading(true);
+          const summary = await getQuestionsSummary(sessionId);
+          setQuestionsSummary(summary);
+          setSummaryLoading(false);
+        }
       } catch (err) {
         console.log("Error fetching session", err);
         // Fallback to localStorage
@@ -59,6 +70,14 @@ const StudentSummary = () => {
             questions: found.questions || []
            
           });
+
+          // Fetch questions summary if there are questions
+          if (totalQuestions > 0) {
+            setSummaryLoading(true);
+            const summary = await getQuestionsSummary(sessionId);
+            setQuestionsSummary(summary);
+            setSummaryLoading(false);
+          }
         } else {
           console.log("Session not found");
         }
@@ -132,6 +151,20 @@ return (
         Back to Student Dashboard
       </button>
     </div>
+
+    {/* QUESTIONS SUMMARY SECTION */}
+    {data.totalQuestions > 0 && (
+      <div className="questions-summary-section">
+        <h2>📊 Session  Overview</h2>
+        {summaryLoading ? (
+          <div className="summary-loading">⏳ Analyzing questions...</div>
+        ) : (
+          <div className="summary-content">
+            {questionsSummary}
+          </div>
+        )}
+      </div>
+    )}
   </div>
 );
 
