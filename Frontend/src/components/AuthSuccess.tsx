@@ -18,7 +18,10 @@ export default function AuthSuccess() {
         if (data.success && data.user) {
           toast.success(`Welcome back, ${data.user.name || 'User'}!`);
           
-          // Store user data in localStorage or context
+          // Store token and user data in localStorage
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+          }
           localStorage.setItem('user', JSON.stringify(data.user));
           
           // Redirect based on role

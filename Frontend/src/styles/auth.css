@@ -274,3 +274,42 @@ font-size: 1.45rem;
 }
 
 }
+
+/* ROLE SWITCH */
+.role-switch-container {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 0 auto 24px auto;
+  width: 100%;
+}
+
+.role-switch-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: 1px solid #d1d5db;
+  background-color: #f3f4f6;
+  color: #374151; /* Dark Gray text for visibility */
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  max-width: 140px;
+}
+
+.role-switch-btn.active {
+  background-color: #1e3a8a; /* Dark Blue */
+  color: #ffffff; /* White text */
+  border-color: #1e3a8a;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4), 0 0 0 2px #fff, 0 0 0 4px #1e3a8a;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.role-switch-btn:hover:not(.active) {
+  background-color: #e5e7eb;
+  color: #111827; /* Near black text on hover */
+  border-color: #9ca3af;
+}

@@ -20,10 +20,14 @@ passport.deserializeUser(async (id: string, done) => {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID || '',
   clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-  callbackURL: "http://localhost:5000/auth/google/callback"
-}, async (accessToken, refreshToken, profile, done) => {
+  callbackURL: "http://localhost:5000/auth/google/callback",
+  passReqToCallback: true
+}, async (req: any, accessToken, refreshToken, profile, done) => {
   console.log('Google OAuth Strategy initialized');
   try {
+    // Determine role from OAuth state parameter (default 'student')
+    const requestedRole = req.query.state === 'teacher' ? 'teacher' : 'student';
+
     let user = await User.findOne({ googleId: profile.id });
     
     if (!user) {
@@ -35,6 +39,8 @@ passport.use(new GoogleStrategy({
         existingUser.googleId = profile.id;
         existingUser.avatar = profile.photos?.[0]?.value;
         existingUser.isVerified = true;
+        // Update their role based on how they logged in this time
+        existingUser.role = requestedRole;
         await existingUser.save();
         user = existingUser;
       } else {
@@ -44,9 +50,15 @@ passport.use(new GoogleStrategy({
           email: profile.emails?.[0]?.value,
           name: profile.displayName,
           avatar: profile.photos?.[0]?.value,
-          role: "student", // Default role for Google users
+          role: requestedRole,
           isVerified: true
         });
+        await user.save();
+      }
+    } else {
+      // User already exists via Google, update their role if they chose a different one during sign in
+      if (user.role !== requestedRole) {
+        user.role = requestedRole;
         await user.save();
       }
     }

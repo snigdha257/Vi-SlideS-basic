@@ -1,9 +1,11 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import authRoutes from './routes/authRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import cors from "cors";
 import connectDB from "./config/db";
-import dotenv from 'dotenv';
 import { createSocketServer } from "./socketServer";
 import { createServer } from 'http';
 import os from 'os';
@@ -12,7 +14,6 @@ import session from 'express-session';
 
 const app = express();
 const port = process.env.PORT || 5000;
-dotenv.config();
 
 app.use(session({
   secret: process.env.JWT_SECRET || 'your-secret-key',
@@ -28,10 +29,10 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    const isAllowed = 
-      origin.startsWith('http://localhost') || 
-      origin.startsWith('http://127.0.0.1') || 
+
+    const isAllowed =
+      origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1') ||
       origin.startsWith('http://192.168.') ||
       origin.match(/^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./) || // Private Class B
       origin.startsWith('http://10.'); // Private Class A
@@ -61,7 +62,7 @@ app.get("/server-ip", (req, res) => {
   try {
     const interfaces = os.networkInterfaces();
     let localIp = "localhost";
-    
+
     for (const name of Object.keys(interfaces)) {
       const iface = interfaces[name];
       if (iface) {
@@ -75,7 +76,7 @@ app.get("/server-ip", (req, res) => {
       }
       if (localIp !== "localhost") break;
     }
-    
+
     res.json({ ip: localIp, port: port });
   } catch (error) {
     console.error("Error getting server IP:", error);

@@ -10,8 +10,8 @@ export const authenticateToken = (
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) {
-    console.log(req.headers);
+  if (!token || token === "null" || token === "undefined") {
+    console.log("Token missing or invalid:", req.headers);
     return res.status(401).json({
       message: "token missing"
     });
@@ -21,8 +21,11 @@ export const authenticateToken = (
   jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
 
     if (err) {
+      console.error("JWT verification error:", err.message);
+      console.error("Token causing error:", token);
       return res.status(403).json({
-        message: "invalid token"
+        message: "invalid token",
+        error: err.message
       });
     }
 

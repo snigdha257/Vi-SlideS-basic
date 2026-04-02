@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap } from "lucide-react";
+import { Zap, Clock, Users, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import "../styles/teacher.css";
  
@@ -12,24 +12,80 @@ function generateSessionCode(length = 6) {
   }
   return code;
 }
- 
+
 type SessionItem = {
+  _id?: string;
   code: string;
   name: string;
   createdBy: string;
   createdAt: string;
   status?: "active" | "ended";
+  questions?: any[];
+  students?: any[];
+  duration?: string;
+  startTime?: string;
+  endTime?: string;
 };
  
 export default function Teacher() {
   const [sessionName, setSessionName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [previousSessions, setPreviousSessions] = useState<SessionItem[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const navigate = useNavigate();
+
+  // Check for valid token on mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token || token === "null" || token === "undefined") {
+      toast.error("Please log in first");
+      navigate("/login");
+      return;
+    }
+    fetchPreviousSessions();
+  }, [navigate]);
+
+  const fetchPreviousSessions = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || token === "null" || token === "undefined") return;
+
+    try {
+      const response = await fetch("http://localhost:5000/teacher-sessions", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        // Sort by createdAt descending (newest first)
+        const sorted = (data.sessions || []).sort(
+          (a: SessionItem, b: SessionItem) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setPreviousSessions(sorted);
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("role");
+    localStorage.removeItem("sessions");
+    localStorage.removeItem("studentInfo");
     navigate("/login");
   };
  
@@ -39,23 +95,37 @@ export default function Teacher() {
       toast.error("Please enter a session name"); 
       return; 
     }
+
+    const token = localStorage.getItem("token");
+    if (!token || token === "null" || token === "undefined") {
+      toast.error("Please log in first");
+      navigate("/login");
+      return;
+    }
  
     setIsCreating(true);
     const sessionCode = generateSessionCode();
     
     try {
-      // Create session in backend database
       const response = await fetch("http://localhost:5000/create-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           code: sessionCode,
           name: trimmedName
         })
       });
+
+      if (response.status === 401 || response.status === 403) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -64,17 +134,6 @@ export default function Teacher() {
         return;
       }
 
-      // Also save to localStorage for fallback compatibility
-      const sessions: SessionItem[] = JSON.parse(localStorage.getItem("sessions") || "[]");
-      const newSession: SessionItem = {
-        code: sessionCode,
-        name: trimmedName,
-        createdBy: "teacher",
-        createdAt: new Date().toISOString(),
-        status: "active",
-      };
-      localStorage.setItem("sessions", JSON.stringify([...sessions, newSession]));
-      
       toast.success("Session created successfully");
       setSessionName("");
       navigate(`/session/${sessionCode}?role=teacher`);
@@ -84,6 +143,24 @@ export default function Teacher() {
       setIsCreating(false);
     }
   };
+
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  };
+
+  const activeSessions = previousSessions.filter(s => s.status === "active");
+  const endedSessions = previousSessions.filter(s => s.status === "ended");
  
   return (
     <div className="teacher-page">
@@ -132,9 +209,100 @@ export default function Teacher() {
               onClick={handleCreateSession}
               disabled={isCreating}
             >
-              {/*this loading state has been added*/}
               <Zap size={18} /> {isCreating ? "Creating..." : "Create & Start Session"}
             </button>
+          </div>
+        </div>
+
+        {/* Previous Sessions */}
+        <div className="t-card">
+          <div className="t-card-header">
+            <div>
+              <h2>Previous Sessions</h2>
+              <p>{previousSessions.length} total session{previousSessions.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          <div className="t-card-body">
+            {loadingSessions ? (
+              <div className="t-empty">
+                <div className="t-empty-icon">⏳</div>
+                <p>Loading sessions...</p>
+              </div>
+            ) : previousSessions.length === 0 ? (
+              <div className="t-empty">
+                <div className="t-empty-icon">📋</div>
+                <p>No sessions yet. Create your first one!</p>
+              </div>
+            ) : (
+              <div className="session-list">
+                {/* Active sessions first */}
+                {activeSessions.map((session) => (
+                  <div
+                    key={session.code}
+                    className="session-list-item session-active"
+                  >
+                    <div className="s-item-left">
+                      <div className="s-item-dot active"></div>
+                      <div>
+                        <div className="s-item-name">{session.name}</div>
+                        <div className="s-item-meta">
+                          <span className="s-item-code">{session.code}</span>
+                          <span className="s-item-time">
+                            <Clock size={12} /> {formatTimeAgo(session.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="s-item-right">
+                      <div className="s-item-stats">
+                        <span className="s-stat" title="Students">
+                          <Users size={13} /> {session.students?.length || 0}
+                        </span>
+                        <span className="s-stat" title="Questions">
+                          <MessageSquare size={13} /> {session.questions?.length || 0}
+                        </span>
+                      </div>
+                      <span className="s-item-badge active">Live</span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Ended sessions */}
+                {endedSessions.map((session) => (
+                  <div
+                    key={session.code}
+                    className="session-list-item"
+                  >
+                    <div className="s-item-left">
+                      <div className="s-item-dot ended"></div>
+                      <div>
+                        <div className="s-item-name">{session.name}</div>
+                        <div className="s-item-meta">
+                          <span className="s-item-code">{session.code}</span>
+                          <span className="s-item-time">
+                            <Clock size={12} /> {formatTimeAgo(session.createdAt)}
+                          </span>
+                          {session.duration && (
+                            <span className="s-item-duration">· {session.duration}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="s-item-right">
+                      <div className="s-item-stats">
+                        <span className="s-stat" title="Students">
+                          <Users size={13} /> {session.students?.length || 0}
+                        </span>
+                        <span className="s-stat" title="Questions">
+                          <MessageSquare size={13} /> {session.questions?.length || 0}
+                        </span>
+                      </div>
+                      <span className="s-item-badge ended">Ended</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
