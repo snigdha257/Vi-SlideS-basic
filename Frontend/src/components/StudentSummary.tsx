@@ -6,7 +6,7 @@ import autoTable from "jspdf-autotable";
 import { getQuestionsSummary } from "../utils/questionSummary";
 import '../styles/sessionsummary.css'
 
-const SessionSummary = () => {
+const StudentSummary = () => {
   const [data, setData] = useState<any>(null);
   const [questionsSummary, setQuestionsSummary] = useState<string>("");
   const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
@@ -28,15 +28,15 @@ const SessionSummary = () => {
 
         const totalQuestions = session.questions?.length || 0;
         const totalStudents = session.students?.length || 0;
-        const moodSummary = session.moodSummary || {};
+        
 
         setData({
           totalQuestions,
           totalStudents,
           duration: session.duration || "N/A",
           students: session.students || [],
-          questions: session.questions || [],
-          moodSummary
+          questions: session.questions || []
+         
         });
 
         // Fetch questions summary if there are questions
@@ -67,8 +67,8 @@ const SessionSummary = () => {
             totalStudents: found.students?.length || 0,
             duration,
             students: found.students || [],
-            questions: found.questions || [],
-            moodSummary: found.moodSummary || {}
+            questions: found.questions || []
+           
           });
 
           // Fetch questions summary if there are questions
@@ -86,44 +86,6 @@ const SessionSummary = () => {
 
     fetchData();
   }, [sessionId]);
-
-  const getMajorityMoods = (moodSummary: any) => {
-  const understood = moodSummary?.understood || 0;
-  const okay = moodSummary?.okay || 0;
-  const confused = moodSummary?.confused || 0;
-
-  if (understood === 0 && okay === 0 && confused === 0) {
-    return "";
-  }
-
-  if (understood >= okay && understood >= confused) return "understood";
-  if (okay >= understood && okay >= confused) return "okay";
-  return "confused";
-};
-
-  const downloadSummaryPDF = () => {
-    const doc = new jsPDF();
-
-    doc.text("Session Summary", 14, 15);
-    doc.text(`Total Students: ${data.totalStudents}`, 14, 25);
-    doc.text(`Total Questions: ${data.totalQuestions}`, 14, 32);
-    doc.text(`Duration: ${data.duration}`, 14, 39);
-
-    const tableData = data.students.map((s: any) => [
-      s.name,
-      s.joinedAt ? new Date(s.joinedAt).toLocaleString() : "N/A",
-      s.leftAt ? new Date(s.leftAt).toLocaleString() : "Active"
-    ]);
-
-    autoTable(doc, {
-      startY: 50,
-      head: [["Name", "Join Time", "Leave Time"]],
-      body: tableData,
-    });
-
-    doc.save(`session-${sessionId}.pdf`);
-  };
-
   const downloadQuestionsPDF = () => {
     const doc = new jsPDF();
 
@@ -140,7 +102,6 @@ const SessionSummary = () => {
       q.question,
       q.answer || "No answer yet",
       q.aiAnswer ? `AI: ${q.aiAnswer}` : "N/A",
-     
     ]);
 
     autoTable(doc, {
@@ -176,66 +137,25 @@ return (
         <div className="summary-card-title">Duration</div>
         <div className="summary-card-value">{data.duration}</div>
       </div>
-
-     {/* CLASS MOOD (MAJORITY) */}
-{data.moodSummary && data.moodSummary.totalResponses > 0 && (
-  <div className="summary-card">
-    <div className="summary-card-title">Class Mood</div>
-    <div className="summary-card-value" >
-       {getMajorityMoods(data.moodSummary) === "understood"
-        ? "EXCELLENT 👌"
-        : getMajorityMoods(data.moodSummary) === "okay"
-        ? "GOOD 🙂"
-        : getMajorityMoods(data.moodSummary) === "confused"
-        ? "OKAY 👍"
-        : "No responses yet"
-      }
     </div>
-  </div>
-)}
+    {/* BUTTONS */}
+    <div className="summary-buttons">
+      <button onClick={downloadQuestionsPDF} className="summary-btn">
+        Download Questions
+      </button>
+
+      <button
+        onClick={() => navigate("/student")}
+        className="summary-btn secondary"
+      >
+        Back to Student Dashboard
+      </button>
     </div>
-
-    {/* ATTENDANCE */}
-    <h2>Attendance</h2>
-    {data.students.length === 0 ? (
-      <p>No students joined</p>
-    ) : (
-      <ul className="summary-list">
-        {data.students.map((s: any, index: number) => (
-          <li key={index}>{s.name}</li>
-        ))}
-      </ul>
-    )}
-
-    {/* MOOD SUMMARY - AT THE BOTTOM */}
-    {data.moodSummary?.totalResponses >= 0 && (
-      <div className="mood-summary-section">
-        <h2>Class Mood Check Results</h2>
-        <div className="mood-summary-grid">
-          <div className={`mood-summary-item understood ${getMajorityMoods(data.moodSummary) === 'understood' ? 'highlighted' : ''}`}>
-            <div className="mood-summary-emoji">👍</div>
-            <div className="mood-summary-label">Understood</div>
-            <div className="mood-summary-count">{data.moodSummary.understood}</div>
-          </div>
-          <div className={`mood-summary-item okay ${getMajorityMoods(data.moodSummary) === 'okay' ? 'highlighted' : ''}`}>
-            <div className="mood-summary-emoji">😐</div>
-            <div className="mood-summary-label">Okay</div>
-            <div className="mood-summary-count">{data.moodSummary.okay}</div>
-          </div>
-          <div className={`mood-summary-item confused ${getMajorityMoods(data.moodSummary) === 'confused' ? 'highlighted' : ''}`}>
-            <div className="mood-summary-emoji">👎</div>
-            <div className="mood-summary-label">Confused</div>
-            <div className="mood-summary-count">{data.moodSummary.confused}</div>
-          </div>
-        </div>
-        <div className="mood-summary-total">Total Responses: {data.moodSummary.totalResponses}</div>
-      </div>
-    )}
 
     {/* QUESTIONS SUMMARY SECTION */}
     {data.totalQuestions > 0 && (
       <div className="questions-summary-section">
-        <h2>📊 Session Topics Overview</h2>
+        <h2>📊 Session  Overview</h2>
         {summaryLoading ? (
           <div className="summary-loading">⏳ Analyzing questions...</div>
         ) : (
@@ -245,24 +165,6 @@ return (
         )}
       </div>
     )}
-
-    {/* BUTTONS */}
-    <div className="summary-buttons">
-      <button onClick={downloadSummaryPDF} className="summary-btn">
-        Download PDF
-      </button>
-
-      <button onClick={downloadQuestionsPDF} className="summary-btn">
-        Download Questions
-      </button>
-
-      <button
-        onClick={() => navigate("/teacher")}
-        className="summary-btn secondary"
-      >
-        Back to Teacher Dashboard
-      </button>
-    </div>
   </div>
 );
 
@@ -271,4 +173,4 @@ return (
 };
 
 
-export default SessionSummary;
+export default StudentSummary;

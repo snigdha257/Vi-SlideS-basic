@@ -111,7 +111,7 @@ const { socket, connected } = useSocket(
       toast.error('Session has been ended by the teacher');
       if (role === 'student') {
         setTimeout(() => {
-          navigate('/student');
+          navigate(`/student-summary/${sessionCode}`);
         }, 2000);
       }
     });
@@ -315,7 +315,7 @@ const handleStudentLeave = () => {
     );
     localStorage.setItem("sessions", JSON.stringify(updated));
     setEnded(true);
-    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : `/student-summary/${sessionCode}`);
   };
 
   const handleTogglePause = () => {
