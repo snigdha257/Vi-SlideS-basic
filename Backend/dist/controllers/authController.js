@@ -12,11 +12,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.googleLogin = exports.loginUser = exports.registerUser = void 0;
+exports.logoutUser = exports.googleCallback = exports.startGoogleAuth = exports.loginUser = exports.registerUser = void 0;
 const userModels_1 = __importDefault(require("../models/userModels"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const google_auth_library_1 = require("google-auth-library");
+const crypto_1 = __importDefault(require("crypto"));
+const getOAuthClient = () => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    if (!clientId || !clientSecret || !redirectUri) {
+        throw new Error('Google OAuth environment variables are not configured');
+    }
+    return new google_auth_library_1.OAuth2Client(clientId, clientSecret, redirectUri);
+};
+const getCookieOptions = () => ({
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+});
+const buildAppJwt = (user) => {
+    return jsonwebtoken_1.default.sign({ email: user.email, name: user.name, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+};
 //user registration----------
 const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email, password, name, role } = req.body;
@@ -56,7 +74,8 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (!isMatch) {
             return res.status(401).json({ message: "invalid credentials" });
         }
-        const token = jsonwebtoken_1.default.sign({ email: user.email, name: user.name, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const token = buildAppJwt(user);
+        res.cookie('token', token, Object.assign(Object.assign({}, getCookieOptions()), { maxAge: 60 * 60 * 1000 }));
         res.json({
             message: "Login successful",
             token: token,
@@ -73,46 +92,82 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.loginUser = loginUser;
-const client = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const googleLogin = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { token, role } = req.body;
+const startGoogleAuth = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const role = req.query.role === 'teacher' ? 'teacher' : 'student';
+        const stateNonce = crypto_1.default.randomBytes(16).toString('hex');
+        const state = Buffer.from(JSON.stringify({ nonce: stateNonce, role })).toString('base64url');
+        const client = getOAuthClient();
+        const authUrl = client.generateAuthUrl({
+            access_type: 'offline',
+            scope: ['openid', 'email', 'profile'],
+            prompt: 'consent',
+            state
+        });
+        res.cookie('oauth_state', stateNonce, Object.assign(Object.assign({}, getCookieOptions()), { maxAge: 10 * 60 * 1000 }));
+        res.redirect(authUrl);
+    }
+    catch (error) {
+        console.error('Google auth start error:', error);
+        res.status(500).json({ message: 'Failed to start Google authentication' });
+    }
+});
+exports.startGoogleAuth = startGoogleAuth;
+const googleCallback = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const { code, state } = req.query;
+    try {
+        if (typeof code !== 'string' || typeof state !== 'string') {
+            return res.status(400).json({ message: 'Missing Google callback parameters' });
+        }
+        const decodedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8'));
+        const storedNonce = (_a = req.cookies) === null || _a === void 0 ? void 0 : _a.oauth_state;
+        if (!storedNonce || decodedState.nonce !== storedNonce) {
+            return res.status(400).json({ message: 'Invalid OAuth state' });
+        }
+        const role = decodedState.role === 'teacher' ? 'teacher' : 'student';
+        const client = getOAuthClient();
+        const { tokens } = yield client.getToken(code);
+        if (!tokens.id_token) {
+            return res.status(400).json({ message: 'Missing id_token from Google' });
+        }
         const ticket = yield client.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_CLIENT_ID
         });
         const payload = ticket.getPayload();
-        if (!payload) {
-            return res.status(400).json({ message: "Invalid Google token" });
+        if (!(payload === null || payload === void 0 ? void 0 : payload.email)) {
+            return res.status(400).json({ message: 'Invalid Google user payload' });
         }
-        const { email, name } = payload;
+        const email = payload.email;
+        const name = payload.name || payload.email.split('@')[0];
         let user = yield userModels_1.default.findOne({ email });
         if (!user) {
-            const userRole = role || 'student';
             const randomPassword = yield bcrypt_1.default.hash(Math.random().toString(36).slice(-8), 10);
             user = new userModels_1.default({
-                email: email,
+                email,
                 password: randomPassword,
-                name: name,
-                role: userRole
+                name,
+                role
             });
             yield user.save();
         }
-        // Generate JWT token
-        const jwtToken = jsonwebtoken_1.default.sign({ email: user.email, name: user.name, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
-        res.json({
-            message: "Google Login successful",
-            token: jwtToken,
-            user: {
-                email: user.email,
-                name: user.name,
-                role: user.role
-            }
-        });
+        const jwtToken = buildAppJwt(user);
+        res.cookie('token', jwtToken, Object.assign(Object.assign({}, getCookieOptions()), { maxAge: 60 * 60 * 1000 }));
+        res.clearCookie('oauth_state', getCookieOptions());
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const destination = user.role === 'teacher' ? '/teacher' : '/student';
+        return res.redirect(`${frontendUrl}${destination}`);
     }
     catch (error) {
-        console.error("Google Login error:", error);
-        res.status(500).json({ message: "Server error during Google login" });
+        console.error('Google callback error:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/login`);
     }
 });
-exports.googleLogin = googleLogin;
+exports.googleCallback = googleCallback;
+const logoutUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    res.clearCookie('token', getCookieOptions());
+    res.status(200).json({ message: 'Logged out successfully' });
+});
+exports.logoutUser = logoutUser;
