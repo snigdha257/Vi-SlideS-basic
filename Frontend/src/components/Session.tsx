@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSocket } from '../hooks/useSocket';
 import "../styles/session.css";
@@ -34,6 +34,7 @@ type SessionItem = {
 
 export default function Session() {
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showStudentsPanel, setShowStudentsPanel] = useState(false);
   const { sessionCode } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -407,6 +408,13 @@ const handleStudentLeave = () => {
             {role === "teacher" && (
               <>
                 <button
+                  className="btn-students"
+                  onClick={() => setShowStudentsPanel(!showStudentsPanel)}
+                  title="Check active students"
+                >
+                  👥 {students.length}
+                </button>
+                <button
                   className="btn-qr"
                   onClick={() => setShowQRModal(true)}
                   title="Show QR code for students to scan"
@@ -575,19 +583,32 @@ const handleStudentLeave = () => {
           )}
         </div>
 
-        {/* STUDENTS */}
-        {role === "teacher" && (
-          <div className="card">
-            <div className="card-title">
-              Students ({students.length})
-            </div>
-
-            {students.map(s => (
-              <div key={s.id} className="student-item">
-                {s.name}
-              </div>
-            ))}
+        {/* STUDENTS PANEL - RIGHT SIDE */}
+        <div className={`students-panel ${showStudentsPanel ? "open" : ""}`}>
+          <div className="students-panel-header">
+            <h3>Active Students ({students.length})</h3>
+            <button
+              className="students-panel-close"
+              onClick={() => setShowStudentsPanel(false)}
+            >
+              ✕
+            </button>
           </div>
+          <div className="students-panel-body">
+            {students.length === 0 ? (
+              <div className="students-empty">No students joined yet</div>
+            ) : (
+              students.map(s => (
+                <div key={s.id} className="student-item">
+                  <span className="student-dot">•</span>
+                  {s.name}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        {showStudentsPanel && (
+          <div className="students-overlay" onClick={() => setShowStudentsPanel(false)} />
         )}
 
         {/* QR CODE MODAL - TEACHER ONLY */}

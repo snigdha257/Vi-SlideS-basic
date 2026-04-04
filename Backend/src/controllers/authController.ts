@@ -82,18 +82,32 @@ export const googleLogin = async (req: Request, res: Response) => {
 
     const { email, name } = payload;
     let user = await User.findOne({ email });
+    let isNewUser = false;
+    // If user doesn't exist, create new user with Google info. If role is not provided for new user, return response indicating role selection is needed.
+
     if (!user) {
-      const userRole = role || 'student';
+      // If no role provided for new user, don't create yet - ask for role selection
+      if (!role) {
+        return res.json({
+          message: "New user - role selection required",
+          isNewUser: true,
+          token: null,
+          user: null
+        });
+      }
+
+      isNewUser = true;
       const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
 
       user = new User({
         email: email,
         password: randomPassword,
         name: name,
-        role: userRole
+        role: role
       });
       await user.save();
     }
+
     // Generate JWT token
     const jwtToken = jwt.sign(
       { email: user.email, name: user.name, role: user.role },
@@ -108,7 +122,8 @@ export const googleLogin = async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role
-      }
+      },
+      isNewUser: isNewUser// If user was just created, frontend can check isNewUser flag to know if it needs to ask for role selection
     });
 
   } catch (error) {
