@@ -1,3 +1,6 @@
+see thses is my session.css
+/* PAGE */
+
 .session-page {
   min-height: 100vh;
   background: #020617;
@@ -765,6 +768,12 @@
 
 .btn-info {
   background: #3b82f6;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .btn-info:hover {
@@ -773,19 +782,16 @@
 
 .btn-secondary {
   background: #6366f1;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .btn-secondary:hover {
   background: #4f46e5;
-}
-
-.btn-qr {
-  background: #f5f5f5;
-  color: #020617;
-}
-
-.btn-qr:hover {
-  background: #e8e8e8;
 }
 
 .paused-badge {

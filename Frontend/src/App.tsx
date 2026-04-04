@@ -8,7 +8,7 @@ import Teacher from "./components/teacher";
 import Session from "./components/Session";
 import SessionSummary from "./components/SessionSummary";
 import PublicAsk from "./components/PublicAsk";
-import StudentSummary from "./components/StudentSummary";
+
 
 export default function App() {
   return (
@@ -22,7 +22,6 @@ export default function App() {
         <Route path="/teacher" element={<Teacher />} />
         <Route path="/session/:sessionCode" element={<Session />} />
         <Route path="/session-summary/:sessionId" element={<SessionSummary />} />
-        <Route path="/student-summary/:sessionId" element={<StudentSummary />} />
         <Route path="/ask/:sessionCode" element={<PublicAsk />} />
         <Route path="/" element={<Login />} />
       </Routes>

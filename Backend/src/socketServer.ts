@@ -1,7 +1,6 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import Session from './models/sessionModels';
-import { checkAndFixGrammar } from './services/aiService';
 
 interface Question {
   id: string;
@@ -74,8 +73,6 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         isPaused: false
       };
     }
-
-    let currentMoodState: any = null;
 
     try {
       const dbSession = await Session.findOne({ code: sessionCode });
@@ -156,110 +153,106 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     // Send existing questions to new user
     socket.emit('load-questions', activeSessions[sessionCode as string].questions);
     socket.emit('session-paused-toggled', activeSessions[sessionCode as string].isPaused);
+  socket.on("start-mood-check", async ({ sessionCode }) => {
+  try {
+    const session = await Session.findOne({ code: sessionCode });
+    if (!session) return;
 
-    if (currentMoodState?.active) {
-      socket.emit('mood-started');
-      socket.emit('mood-update', currentMoodState.responses || EMPTY_MOOD_RESPONSES);
+    session.mood = {
+      active: true,
+      responses: {
+        understood: 0,
+        okay: 0,
+        confused: 0
+      },
+      respondedStudents: []
+    };
+
+    await session.save();
+
+    io.to(sessionCode).emit("mood-started");
+  } catch (err) {
+    console.error("Mood start error:", err);
+  }
+});
+socket.on("submit-mood", async ({ sessionCode, mood, studentName }: any) => {
+  try {
+    const session = await Session.findOne({ code: sessionCode });
+    if (!session || !session.mood?.active) return;
+
+    // prevent multiple responses
+    if (session.mood.respondedStudents.includes(studentName)) return;
+
+    session.mood.respondedStudents.push(studentName);
+
+    // Ensure responses object exists and is initialized
+    if (!session.mood.responses) {
+      session.mood.responses = {
+        understood: 0,
+        okay: 0,
+        confused: 0
+      };
     }
 
-    socket.on("start-mood-check", async ({ sessionCode }) => {
-      try {
-        const session = await Session.findOne({ code: sessionCode });
-        if (!session) return;
+    // Increment the mood count
+    if (mood === "understood") session.mood.responses.understood++;
+    else if (mood === "okay") session.mood.responses.okay++;
+    else if (mood === "confused") session.mood.responses.confused++;
 
-        session.mood = {
-          active: true,
-          responses: { ...EMPTY_MOOD_RESPONSES },
-          respondedStudents: []
-        };
-        session.moodSummary = null;
-        session.markModified("mood");
-        session.markModified("moodSummary");
+    await session.save();
 
-        await session.save();
-
-        io.to(sessionCode).emit("mood-started");
-        io.to(sessionCode).emit("mood-update", session.mood.responses || EMPTY_MOOD_RESPONSES);
-      } catch (err) {
-        console.error("Mood start error:", err);
-      }
+    io.to(sessionCode).emit("mood-update", session.mood?.responses || {
+      understood: 0,
+      okay: 0,
+      confused: 0
     });
 
-    socket.on("submit-mood", async ({ sessionCode, mood, studentName }: any) => {
-      try {
-        const session = await Session.findOne({ code: sessionCode });
-        if (!session || !session.mood?.active) return;
-        if (!studentName || !["understood", "okay", "confused"].includes(mood)) return;
+  } catch (err) {
+    console.error("Mood submit error:", err);
+  }
+});
+socket.on("end-mood-check", async ({ sessionCode }) => {
+  try {
+    const session = await Session.findOne({ code: sessionCode });
+    if (!session || !session.mood) return;
 
-        // prevent multiple responses
-        if (session.mood.respondedStudents.includes(studentName)) return;
+    const { understood = 0, okay = 0, confused = 0 } = session.mood.responses || {};
+    const totalResponses = understood + okay + confused;
 
-        session.mood.respondedStudents.push(studentName);
+    let finalMood = "Neutral 😐";
 
-        if (!session.mood.responses) {
-          session.mood.responses = { ...EMPTY_MOOD_RESPONSES };
-        }
+    if (confused > understood && confused > okay) {
+      finalMood = "Confused 😟";
+    } else if (understood > confused && understood > okay) {
+      finalMood = "Comfortable 😊";
+    }
 
-        if (mood === "understood") session.mood.responses.understood += 1;
-        else if (mood === "okay") session.mood.responses.okay += 1;
-        else if (mood === "confused") session.mood.responses.confused += 1;
+    session.moodSummary = {
+      totalResponses,
+      understood,
+      okay,
+      confused,
+      finalMood
+    };
 
-        session.markModified("mood");
-        await session.save();
+    session.mood.active = false;
 
-        io.to(sessionCode).emit("mood-update", session.mood.responses || EMPTY_MOOD_RESPONSES);
-      } catch (err) {
-        console.error("Mood submit error:", err);
-      }
-    });
+    await session.save();
 
-    socket.on("end-mood-check", async ({ sessionCode }) => {
-      try {
-        const session = await Session.findOne({ code: sessionCode });
-        if (!session || !session.mood) return;
+    // 👇 THIS io is SAME io (already exists above)
+    io.to(sessionCode).emit("mood-ended", session.moodSummary);
 
-        const { understood = 0, okay = 0, confused = 0 } = session.mood.responses || EMPTY_MOOD_RESPONSES;
-        const totalResponses = understood + okay + confused;
-
-        let finalMood = "Neutral 😐";
-
-        if (confused > understood && confused > okay) {
-          finalMood = "Confused 😟";
-        } else if (understood > confused && understood > okay) {
-          finalMood = "Comfortable 😊";
-        }
-
-        session.moodSummary = {
-          totalResponses,
-          understood,
-          okay,
-          confused,
-          finalMood
-        };
-
-        session.mood.active = false;
-        session.markModified("mood");
-        session.markModified("moodSummary");
-
-        await session.save();
-
-        io.to(sessionCode).emit("mood-ended", session.moodSummary);
-      } catch (err) {
-        console.error("Mood end error:", err);
-      }
-    });
+  } catch (err) {
+    console.error("Mood end error:", err);
+  }
+});
     // Handle new question
     socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
       if (!activeSessions[data.sessionCode]) return;
-      
-      // Check and fix grammar before saving
-     const correctedQuestion = await checkAndFixGrammar(data.question);
-
-
       const newQuestion: Question = {
         id: Date.now().toString(),
         studentName: userName as string,
-        question: correctedQuestion,
+        question: data.question,
         timestamp: new Date().toISOString(),
         source: "session",
         aiAnswer: undefined,
@@ -397,7 +390,6 @@ export const createSocketServer = (httpServer: HTTPServer) => {
               session.duration = `${diff} min`;
             }
             session.status = 'ended';
-            session.markModified('status'); 
             await session.save();
             console.log(`Session ${data.sessionCode} ended and saved to DB. Final data:`, {
               questions: session.questions?.length || 0,

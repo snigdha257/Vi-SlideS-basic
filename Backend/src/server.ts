@@ -33,7 +33,11 @@ app.get("/server-ip", (req, res) => {
       if (iface) {
         for (const addr of iface) {
           // Skip internal and non-IPv4 addresses
-          if (addr.family === 'IPv4' && !addr.internal) {
+          if (
+  addr.family === 'IPv4' &&
+  !addr.internal &&
+  (addr.address.startsWith("10."))
+) {
             localIp = addr.address;
             break;
           }

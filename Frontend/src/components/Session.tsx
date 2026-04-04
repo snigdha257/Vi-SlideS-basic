@@ -112,7 +112,7 @@ const { socket, connected } = useSocket(
       toast.error('Session has been ended by the teacher');
       if (role === 'student') {
         setTimeout(() => {
-          navigate(`/student-summary/${sessionCode}`);
+          navigate('/student');
         }, 2000);
       }
     });
@@ -126,16 +126,14 @@ const { socket, connected } = useSocket(
     });
     socket.on('mood-started', () => {
       setMoodCheckActive(true);
-      setMoodResponses({ understood: 0, okay: 0, confused: 0 });
       setStudentMoodSubmitted(false);
       toast.success('Class Mood Check Started! Please respond.');
     });
     socket.on('mood-update', (responses: { understood: number; okay: number; confused: number }) => {
       setMoodResponses(responses);
     });
-    socket.on('mood-ended', (summary?: { understood: number; okay: number; confused: number }) => {
+    socket.on('mood-ended', () => {
       setMoodCheckActive(false);
-      setMoodResponses(summary || { understood: 0, okay: 0, confused: 0 });
       setStudentMoodSubmitted(false);
       toast.success('Mood check ended');
     });
@@ -316,7 +314,7 @@ const handleStudentLeave = () => {
     );
     localStorage.setItem("sessions", JSON.stringify(updated));
     setEnded(true);
-    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : `/student-summary/${sessionCode}`);
+    navigate(role === "teacher" ? `/session-summary/${sessionCode}` : "/student");
   };
 
   const handleTogglePause = () => {
@@ -408,13 +406,6 @@ const handleStudentLeave = () => {
             {role === "teacher" && (
               <>
                 <button
-                  className="btn-students"
-                  onClick={() => setShowStudentsPanel(!showStudentsPanel)}
-                  title="Check active students"
-                >
-                  👥 {students.length}
-                </button>
-                <button
                   className="btn-qr"
                   onClick={() => setShowQRModal(true)}
                   title="Show QR code for students to scan"
@@ -443,6 +434,10 @@ const handleStudentLeave = () => {
             {role === "student" && (
               <button className="btn-danger" onClick={handleStudentLeave}>Leave</button>
             )}
+
+            <button className="btn-icon" onClick={() => navigate("/")}>
+              <ArrowLeft size={14} />
+            </button>
           </div>
         </header>
 

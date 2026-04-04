@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getQuestionsSummary } from "../utils/questionSummary";
 import '../styles/sessionsummary.css'
 
 const SessionSummary = () => {
@@ -38,14 +37,6 @@ const SessionSummary = () => {
           questions: session.questions || [],
           moodSummary
         });
-
-        // Fetch questions summary if there are questions
-        if (totalQuestions > 0) {
-          setSummaryLoading(true);
-          const summary = await getQuestionsSummary(sessionId);
-          setQuestionsSummary(summary);
-          setSummaryLoading(false);
-        }
       } catch (err) {
         console.log("Error fetching session", err);
         // Fallback to localStorage
@@ -67,17 +58,8 @@ const SessionSummary = () => {
             totalStudents: found.students?.length || 0,
             duration,
             students: found.students || [],
-            questions: found.questions || [],
-            moodSummary: found.moodSummary || {}
+            questions: found.questions || []
           });
-
-          // Fetch questions summary if there are questions
-          if (totalQuestions > 0) {
-            setSummaryLoading(true);
-            const summary = await getQuestionsSummary(sessionId);
-            setQuestionsSummary(summary);
-            setSummaryLoading(false);
-          }
         } else {
           console.log("Session not found");
         }
@@ -140,12 +122,12 @@ const SessionSummary = () => {
       q.question,
       q.answer || "No answer yet",
       q.aiAnswer ? `AI: ${q.aiAnswer}` : "N/A",
-     
+      q.timestamp ? new Date(q.timestamp).toLocaleString() : "N/A"
     ]);
 
     autoTable(doc, {
       startY: 30,
-      head: [["Student", "Question", "Teacher Answer", "AI Answer",]],
+      head: [["Student", "Question", "Teacher Answer", "AI Answer", "Time"]],
       body: tableData,
     });
 
@@ -181,8 +163,8 @@ return (
 {data.moodSummary && data.moodSummary.totalResponses > 0 && (
   <div className="summary-card">
     <div className="summary-card-title">Class Mood</div>
-    <div className="summary-card-value" >
-       {getMajorityMoods(data.moodSummary) === "understood"
+    <div className="summary-card-value">
+      {getMajorityMoods(data.moodSummary) === "understood"
         ? "EXCELLENT 👌"
         : getMajorityMoods(data.moodSummary) === "okay"
         ? "GOOD 🙂"
@@ -229,20 +211,6 @@ return (
           </div>
         </div>
         <div className="mood-summary-total">Total Responses: {data.moodSummary.totalResponses}</div>
-      </div>
-    )}
-
-    {/* QUESTIONS SUMMARY SECTION */}
-    {data.totalQuestions > 0 && (
-      <div className="questions-summary-section">
-        <h2>📊 Session Topics Overview</h2>
-        {summaryLoading ? (
-          <div className="summary-loading">⏳ Analyzing questions...</div>
-        ) : (
-          <div className="summary-content">
-            {questionsSummary}
-          </div>
-        )}
       </div>
     )}
 
