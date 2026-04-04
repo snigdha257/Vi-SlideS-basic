@@ -435,9 +435,6 @@ const handleStudentLeave = () => {
               <button className="btn-danger" onClick={handleStudentLeave}>Leave</button>
             )}
 
-            <button className="btn-icon" onClick={() => navigate("/")}>
-              <ArrowLeft size={14} />
-            </button>
           </div>
         </header>
 
