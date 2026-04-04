@@ -1,5 +1,6 @@
 import Session from "../models/sessionModels";
 import { Server as SocketIOServer } from 'socket.io';
+import { checkAndFixGrammar } from "../services/aiService";
 
 interface Question {
   id: string;
@@ -51,10 +52,13 @@ export const submitQRQuestion = async (
     }
 
     // Create new question with source field
+
+    const correctedQuestion = await checkAndFixGrammar(question.trim());
+
     const newQuestion: Question = {
       id: Date.now().toString(),
       studentName: name,
-      question: question.trim(),
+      question: correctedQuestion,
       timestamp: new Date().toISOString(),
       email: email || undefined,
       source: "qr"

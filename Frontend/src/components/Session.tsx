@@ -435,10 +435,6 @@ const handleStudentLeave = () => {
             {role === "student" && (
               <button className="btn-danger" onClick={handleStudentLeave}>Leave</button>
             )}
-
-            <button className="btn-icon" onClick={() => navigate("/")}>
-              <ArrowLeft size={14} />
-            </button>
           </div>
         </header>
 
@@ -462,8 +458,7 @@ const handleStudentLeave = () => {
                   {current?.source === "qr" && <span className="qr-badge">QR Submission</span>}
                 </div>
                 <p>{current?.question}</p>
-                {current?.email && <p className="question-email">Email: {current.email}</p>}
-
+ 
                 {current.answer ? (
                   <div className="answer">{current.answer}</div>
                 ) : role === "teacher" && (

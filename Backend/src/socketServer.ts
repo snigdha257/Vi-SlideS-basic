@@ -1,6 +1,7 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import Session from './models/sessionModels';
+import { checkAndFixGrammar } from './services/aiService';
 
 interface Question {
   id: string;
@@ -250,10 +251,15 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     // Handle new question
     socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
       if (!activeSessions[data.sessionCode]) return;
+      
+      // Check and fix grammar before saving
+     const correctedQuestion = await checkAndFixGrammar(data.question);
+
+
       const newQuestion: Question = {
         id: Date.now().toString(),
         studentName: userName as string,
-        question: data.question,
+        question: correctedQuestion,
         timestamp: new Date().toISOString(),
         source: "session",
         aiAnswer: undefined,
@@ -391,6 +397,7 @@ export const createSocketServer = (httpServer: HTTPServer) => {
               session.duration = `${diff} min`;
             }
             session.status = 'ended';
+            session.markModified('status'); 
             await session.save();
             console.log(`Session ${data.sessionCode} ended and saved to DB. Final data:`, {
               questions: session.questions?.length || 0,

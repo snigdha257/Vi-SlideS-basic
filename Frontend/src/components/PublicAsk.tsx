@@ -134,7 +134,7 @@ export default function PublicAsk() {
 
             {/* Email Field */}
             <div className="form-group">
-              <label htmlFor="email">Email (optional)</label>
+              <label htmlFor="email">Email*</label>
               <input
                 id="email"
                 type="email"
@@ -143,6 +143,7 @@ export default function PublicAsk() {
                 onChange={handleChange}
                 placeholder="your.email@example.com"
                 disabled={isSubmitting}
+                required
               />
             </div>
 

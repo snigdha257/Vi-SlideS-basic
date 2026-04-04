@@ -87,6 +87,22 @@ export default function(io: SocketIOServer) {
     }
   });
 
+  // Get all sessions for students (from their localStorage history)
+  router.get("/student-sessions/name/:name", async (req: any, res: any) => {
+    try {
+      // Return ALL sessions (students can see all sessions)
+      console.log(`Fetching sessions for student name: ${req.params.name}`);
+      const sessions = await Session.find({'students.name': req.params.name});
+      res.status(200).json({
+        message: "Sessions retrieved",
+        sessions
+      });
+    } catch (error) {
+      console.error("Error fetching student sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
   // End a session
   router.patch("/session/:code/end", authenticateToken, async (req: any, res: any) => {
     try {
@@ -98,6 +114,7 @@ export default function(io: SocketIOServer) {
       }
 
       session.status = "ended";
+      session.markModified('status');
       await session.save();
 
       res.status(200).json({
