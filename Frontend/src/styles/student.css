@@ -1,12 +1,15 @@
 /* ===== STUDENT DASHBOARD ===== */
-
+@import "tailwindcss"; 
 .student-page {
-min-height: 100vh;
-background: #0f172a;
-color: #e2e8f0;
-display: flex;
-flex-direction: column;
-font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* NAV */
@@ -95,15 +98,14 @@ background: #1e293b;
 /* CONTENT GRID */
 
 .s-content {
-display: grid;
-grid-template-columns: 1fr 1.2fr;
-
-gap: 20px;
-
-padding: 40px 36px;
-
-flex-grow: 1;
-align-items: start;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 20px;
+  padding: 40px 36px;
+  flex-grow: 1;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
 /* CARDS */
@@ -147,8 +149,19 @@ gap: 16px;
 /* JOIN FORM */
 
 .s-input-group {
-display: flex;
-gap: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.s-card-header input {
+  width: 100%;
+  margin-top: 12px;
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  color: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 10px;
 }
 
 .s-code-input {

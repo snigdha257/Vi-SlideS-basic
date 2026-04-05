@@ -4,7 +4,6 @@ import { authService } from "../services/authService";
 import { GoogleLogin } from "@react-oauth/google";
 import RoleSelector from "../components/RoleSelector";// Reuse RoleSelector component for both login and registration flows
 import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -107,7 +106,7 @@ const [googleUser, setGoogleUser] = useState<any>(null);// Store Google user inf
           navigate("/student");
         }
       }
-    }).catch(err => {
+    }).catch(() => {
       toast.error("Failed to set role");
     }).finally(() => {
       setLoading(false);

@@ -1,5 +1,5 @@
 /* ===== TEACHER DASHBOARD ===== */
-
+@import "tailwindcss"; 
 .teacher-page {
 min-height: 100vh;
 background: #0f172a;

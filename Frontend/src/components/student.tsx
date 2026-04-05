@@ -21,17 +21,27 @@ export default function Student() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const navigate = useNavigate();
 
+  const getStudentInfo = () => {
+    try {
+      const stored = localStorage.getItem("studentInfo");
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.warn("Invalid studentInfo in localStorage", error);
+      return {};
+    }
+  };
+
   // ✅ Fetch sessions from DB (NO localStorage)
   const fetchSessions = async () => {
     try {
-      const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
+      const userInfo = getStudentInfo();
 
       const name =
         userInfo.name ||
         userInfo.email?.split("@")[0] ||
         localStorage.getItem("name") ||
         "Student";
-      const response = await fetch("http://localhost:5000/student-sessions/name/" + name);
+      const response = await fetch(`http://localhost:5000/student-sessions/name/${encodeURIComponent(name)}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch sessions");
@@ -58,11 +68,15 @@ export default function Student() {
 
   // ✅ Filter logic (same as teacher)
   const filteredHistory = sessionHistory.filter((session) => {
-    const search = filter.toLowerCase();
-    const sessionName = session.name.toLowerCase();
-    const sessionCode = session.code.toLowerCase();
+    if (!session) return false;
 
-    const date = new Date(session.createdAt);
+    const search = String(filter || "").toLowerCase();
+    const sessionName = String(session?.name || "").toLowerCase();
+    const sessionCode = String(session?.code || "").toLowerCase();
+
+    const date = session.createdAt ? new Date(session.createdAt) : null;
+    if (!date || isNaN(date.getTime())) return false;
+
     const dateFormats = [
       date.toLocaleDateString().toLowerCase(),
       date.toLocaleDateString("en-US").toLowerCase(),
@@ -200,13 +214,19 @@ export default function Student() {
             </div>
           </div>
         </div>
+<div>
+    {/* ADD HERE 👇 */}
+    <h1 className="text-3xl font-bold text-green-500">
+      Tailwind working 🚀
+    </h1>
 
+    {/* existing UI */}
+  </div>
         {/* HISTORY */}
         <div className="s-history-card">
           <div className="s-card-header">
             <div>
               <h2>Recent Sessions</h2>
-              <h1></h1>
               <input
                 type="text"
                 placeholder="Filter by name, code, or date"

@@ -80,12 +80,16 @@ export default function Teacher() {
       setLoadingSessions(false);
     }
   };
-  const filteredHistory = previousSessions.filter((session) =>{
-    const search = filter.toLowerCase();
-    const sessionName = session.name.toLowerCase();
-    const sessionCode = session.code.toLowerCase();
-    // Create multiple date formats for better matching
-    const date = new Date(session.createdAt);
+  const filteredHistory = previousSessions.filter((session) => {
+    if (!session) return false;
+
+    const search = (filter || "").toLowerCase();
+    const sessionName = (session.name ?? "").toLowerCase();
+    const sessionCode = (session.code ?? "").toLowerCase();
+
+    const date = session.createdAt ? new Date(session.createdAt) : null;
+    if (!date || isNaN(date.getTime())) return false;
+
     const dateFormats = [
       date.toLocaleDateString().toLowerCase(), // "12/25/2023"
       date.toLocaleDateString('en-US').toLowerCase(), // "12/25/2023"
@@ -96,8 +100,7 @@ export default function Teacher() {
     const dateMatches = dateFormats.some(format => format.includes(search));
     
     return sessionName.includes(search) || sessionCode.includes(search) || dateMatches;
-  }
-  );
+  });
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");

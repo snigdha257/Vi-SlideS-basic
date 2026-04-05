@@ -47,8 +47,8 @@ export default function RoleSelector({ onRoleSelected, userName, isloading }: Ro
         </div>
 
         <div className="role-selector-footer">
-          <button className="btn-confirm" onClick={handleConfirm}>
-            Continue
+          <button className="btn-confirm" onClick={handleConfirm} disabled={isloading}>
+            {isloading ? "Please wait..." : "Continue"}
           </button>
         </div>
       </div>

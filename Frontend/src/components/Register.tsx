@@ -117,7 +117,7 @@ const handleRoleSelected = (role: "teacher" | "student") => {
         navigate("/student");
       }
     }
-  }).catch(err => {
+}).catch(() => {
     toast.error("Failed to complete registration");
   }).finally(() => {
     setLoading(false);

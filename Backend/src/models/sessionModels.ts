@@ -165,26 +165,7 @@ const sessionSchema = new mongoose.Schema({
   duration: {
    
    type: String
-  },
-mood: {
-  active: { type: Boolean, default: false },
-  responses: {
-    understood: { type: Number, default: 0 },
-    okay: { type: Number, default: 0 },
-    confused: { type: Number, default: 0 }
-  },
-  respondedStudents: [{ type: String }]
-},
-moodSummary: {
-  totalResponses: { type: Number, default: 0 },
-  understood: { type: Number, default: 0 },
-  okay: { type: Number, default: 0 },
-  confused: { type: Number, default: 0 },
-  finalMood: { type: String },
-  lastMood: { type: String }   // ✅ ADD THIS
-}
-
-  
+  }
 });
 
 const Session = mongoose.model("Session", sessionSchema);
