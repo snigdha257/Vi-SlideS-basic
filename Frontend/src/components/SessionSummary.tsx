@@ -157,7 +157,8 @@ const SessionSummary = () => {
   }
 
 return (
-  <div className="summary-container">
+  <div className="session-summary-page">
+    <div className="summary-container">
     <h1 className="summary-title">Session Summary</h1>
 
     {/* CARDS */}
@@ -262,6 +263,7 @@ return (
       >
         Back to Teacher Dashboard
       </button>
+    </div>
     </div>
   </div>
 );

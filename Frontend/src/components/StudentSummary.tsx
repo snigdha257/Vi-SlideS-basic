@@ -118,7 +118,10 @@ const StudentSummary = () => {
   }
 
 return (
-  <div className="summary-container">
+  <div className="session-summary-page">
+    <div className="floating-glow-blue"></div>
+    <div className="floating-glow-purple"></div>
+    <div className="summary-container">
     <h1 className="summary-title">Session Summary</h1>
 
     {/* CARDS */}
@@ -165,6 +168,7 @@ return (
         )}
       </div>
     )}
+    </div>
   </div>
 );
 

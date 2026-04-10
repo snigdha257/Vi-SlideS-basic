@@ -179,6 +179,13 @@ export default function Student() {
         </div>
       </nav>
 
+      <div className="s-hero">
+        <h1 style={{ textAlign: "center" }}>Student Dashboard</h1>
+        <p style={{ textAlign: "center" }}>
+          Join your teacher's session and start interacting with the presentation.
+        </p>
+      </div>
+
       <main className="s-content">
         {/* JOIN */}
         <div className="s-join-card">
@@ -215,11 +222,7 @@ export default function Student() {
           </div>
         </div>
 <div>
-    {/* ADD HERE 👇 */}
-    <h1 className="text-3xl font-bold text-green-500">
-      Tailwind working 🚀
-    </h1>
-
+   
     {/* existing UI */}
   </div>
         {/* HISTORY */}
