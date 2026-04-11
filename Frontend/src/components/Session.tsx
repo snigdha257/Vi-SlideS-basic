@@ -58,6 +58,7 @@ export default function Session() {
   const [moodCheckActive, setMoodCheckActive] = useState(false);
   const [moodResponses, setMoodResponses] = useState({ understood: 0, okay: 0, confused: 0 });
   const [studentMoodSubmitted, setStudentMoodSubmitted] = useState(false);
+  const [isLightTheme, setIsLightTheme] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
 
@@ -219,6 +220,18 @@ const { socket, connected } = useSocket(
     fetchServerIp();
   }, []);
 
+  // Load and apply theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("sessionTheme");
+    const isLight = savedTheme === "light";
+    setIsLightTheme(isLight);
+    if (isLight) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+  }, []);
+
   // Handle student joining (via socket)
   useEffect(() => {
     if (!session || !sessionCode || role !== "student") return;
@@ -345,6 +358,17 @@ const handleStudentLeave = () => {
     }
   };
 
+  const handleToggleTheme = () => {
+    const newTheme = !isLightTheme;
+    setIsLightTheme(newTheme);
+    localStorage.setItem("sessionTheme", newTheme ? "light" : "dark");
+    if (newTheme) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+  };
+
   // Generate QR code URL
   const getQRCodeUrl = () => {
     const qrUrl = `http://${serverIp}:5173/ask/${sessionCode}`;
@@ -405,6 +429,13 @@ const handleStudentLeave = () => {
           <span className="session-title">Code: {sessionCode}</span>
           <span className="session-title">{session.name}</span>
           <div className="actions">
+            <button
+              className="theme-toggle"
+              onClick={handleToggleTheme}
+              title={`Switch to ${isLightTheme ? 'dark' : 'light'} theme`}
+            >
+              {isLightTheme ? '🌙' : '☀️'}
+            </button>
             {role === "teacher" && (
               <>
                 <button

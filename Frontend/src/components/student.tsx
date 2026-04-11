@@ -164,7 +164,10 @@ export default function Student() {
           </button>
         </div>
       </nav>
-
+      <div className="s-hero">
+        <h1 style={{textAlign:"center"}}>Student Dashboard</h1>
+        <p style={{textAlign:"center"}}>Join your teacher's session and start interacting with the presentation.</p>
+      </div>
       <main className="s-content">
         {/* JOIN */}
         <div className="s-join-card">

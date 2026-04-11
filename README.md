@@ -1,17 +1,18 @@
 # 📘 Vi-SlideS Documentation
 
-Documentation for the **Vi-SlideS real-time classroom interaction platform**.
+Documentation for the **Vi-SlideS real-time classroom interaction platform**.  
+🌐 View full documentation: https://snigdha257.github.io/Vi-SlideS-basic/
 
 ---
 
 ## 🔗 Quick Links
 
-* [SETUP_GUIDE.md](/docs/SETUP_GUIDE.md) – Setup & installation
-* [API_DOCUMENTATION.md](/docs/API_DOCUMENTATION.md) – API & Socket.IO
-* [ARCHITECTURE.md](/docs/ARCHITECTURE.md) – System design
-* [BACKEND_SERVICES.md](/docs/BACKEND_SERVICES.md) – Backend details
-* [FRONTEND_COMPONENTS.md](/docs/FRONTEND_COMPONENTS.md) – Frontend structure
-* [index.md](/docs/index.md) – Project overview
+* [Setup Guide](https://snigdha257.github.io/Vi-SlideS-basic/SETUP_GUIDE)
+* [API Documentation](https://snigdha257.github.io/Vi-SlideS-basic/API_DOCUMENTATION)
+* [Architecture](https://snigdha257.github.io/Vi-SlideS-basic/ARCHITECTURE)
+* [Backend Services](https://snigdha257.github.io/Vi-SlideS-basic/BACKEND_SERVICES)
+* [Frontend Components](https://snigdha257.github.io/Vi-SlideS-basic/FRONTEND_COMPONENTS)
+* [Project Overview](https://snigdha257.github.io/Vi-SlideS-basic/)
 
 ---
 
@@ -23,7 +24,7 @@ cd Backend && npm run dev
 
 # Frontend
 cd Frontend && npm run dev
-```
+````
 
 Open → [http://localhost:5173](http://localhost:5173)
 
@@ -85,7 +86,7 @@ POST /session/create-session
 GET  /session/:code
 ```
 
-📖 Full API → [API_DOCUMENTATION.md](/docs/API_DOCUMENTATION.md)
+📖 Full API → [API_DOCUMENTATION](https://snigdha257.github.io/Vi-SlideS-basic/API_DOCUMENTATION)
 
 ---
 
@@ -189,10 +190,10 @@ cd Frontend && npm run dev
 
 ## 🧠 Reading Guide
 
-* **Beginner:** SETUP → ARCHITECTURE
-* **Frontend:** FRONTEND_COMPONENTS + API
-* **Backend:** BACKEND_SERVICES + API
-* **Deployment:** ARCHITECTURE
+* **Beginner:** Setup → Architecture
+* **Frontend:** Frontend Components + API
+* **Backend:** Backend Services + API
+* **Deployment:** Architecture
 
 ---
 
@@ -216,3 +217,4 @@ cd Frontend && npm run dev
 ## 📜 License
 
 Part of the Vi-SlideS project.
+
