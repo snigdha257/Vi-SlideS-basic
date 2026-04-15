@@ -17,7 +17,13 @@ const request = async (promise: Promise<any>, errorMsg: string) => {
     const { data } = await promise;
     return data;
   } catch (error: any) {
-    throw error.response?.data || { message: errorMsg };
+    const serverData = error.response?.data;
+    const message =
+      serverData?.message ||
+      (typeof serverData === "string" ? serverData : undefined) ||
+      error.message ||
+      errorMsg;
+    throw { message };
   }
 };
 

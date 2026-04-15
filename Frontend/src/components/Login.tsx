@@ -30,7 +30,8 @@ const [googleUser, setGoogleUser] = useState<any>(null);// Store Google user inf
         }
       }
     } catch (err: any) {
-      toast.error(err.message || "Login Failed");
+      console.error("Login error:", err);
+      toast.error(err?.message || err || "Login Failed");
     } finally {
       setLoading(false);
     }
