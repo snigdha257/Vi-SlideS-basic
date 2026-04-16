@@ -2,23 +2,34 @@
 
 ## System Overview
 
-Vi-SlideS is a **real-time classroom interaction platform** enabling live question-answer sessions with AI assistance. The system uses a **client-server architecture** with **real-time bidirectional communication** via WebSockets.
+Vi-SlideS is a **real-time classroom interaction platform** enabling live question-answer sessions with AI assistance. The system uses a **client-server architecture** with **real-time bidirectional communication** via WebSockets and **enhanced features** for professional education.
 
-```
-┌─────────────────┐                    ┌──────────────────────┐
-│  Frontend App   │ ◄──► HTTP/WS ◄──► │ Backend Server       │
-│ (React + Vite) │                     │ (Node.js + Express)  │
-└─────────────────┘                    └──────────────────────┘
-  • Components                              • Controllers
-  • Socket.IO Client                        • Services
-  • Browser Storage                         • Socket.IO Server
-                                             • API Routes
-                                                    ▼
-                                           ┌──────────────────┐
-                                           │ MongoDB Database │
-                                           │ (Persistence)    │
-                                           └──────────────────┘
-```
+![System Architecture](./system-architecture.png)
+
+## **Enhanced Features**
+
+### Real-time Systems
+- **Focus Check System** - Timer-based attendance verification with live analytics
+- **Mood Check System** - Student sentiment tracking with comprehensive insights
+- **Enhanced Q&A** - Grammar checking for AI responses
+- **Professional Theme System** - Dark/Light modes with CSS variables
+
+### Authentication & Authorization
+- **Google OAuth Integration** - Seamless login with role-based routing
+- **Role-based Redirection** - Smart dashboard access based on user roles
+- **Enhanced JWT Security** - 1-hour expiry with secure token management
+
+### Professional UI/UX
+- **Modern Design System** - Professional gradients and animations
+- **Enhanced Accessibility** - Better contrast and focus states
+- **Micro-interactions** - Smooth hover states and transitions
+- **Component-based CSS** - Modular styling system
+
+### Advanced Features
+- **AI Grammar Checking** - Automatic validation of questions and AI responses
+- **Session Analytics** - Comprehensive data collection and insights
+- **Multi-modal Input** - QR code support for mobile devices
+- **Live Student Tracking** - Real-time participant monitoring
 
 ---
 

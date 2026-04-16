@@ -4,7 +4,6 @@ import { authService } from "../services/authService";
 import { GoogleLogin } from "@react-oauth/google";
 import RoleSelector from "../components/RoleSelector";// Reuse RoleSelector component for both login and registration flows
 import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -108,7 +107,7 @@ const [googleUser, setGoogleUser] = useState<any>(null);// Store Google user inf
         }
       }
     }).catch(err => {
-      toast.error("Failed to set role");
+      toast.error("Failed to set role",err);
     }).finally(() => {
       setLoading(false);
     });// After role selection, we call googleLogin again with the selected role to update the user in the backend and get the token. Then we log in the user as usual.

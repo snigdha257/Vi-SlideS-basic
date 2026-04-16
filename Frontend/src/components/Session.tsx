@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Copy, Check } from "lucide-react";
 import toast from "react-hot-toast";
@@ -58,6 +58,14 @@ export default function Session() {
   const [moodCheckActive, setMoodCheckActive] = useState(false);
   const [moodResponses, setMoodResponses] = useState({ understood: 0, okay: 0, confused: 0 });
   const [studentMoodSubmitted, setStudentMoodSubmitted] = useState(false);
+  const [pulseCheckActive, setPulseCheckActive] = useState(false);
+  const [pulseCheckResponse, setPulseCheckResponse] = useState<'present' | 'absent' | null>(null);
+  const [pulseCheckCounts, setPulseCheckCounts] = useState({ present: 0, absent: 0 });
+  const [pulseCheckTimer, setPulseCheckTimer] = useState(60);
+  const pulseCheckTimerRef = useRef<number | null>(null);
+  const [pulsePresentNames, setPulsePresentNames] = useState<string[]>([]);
+  const [pulseAbsentNames, setPulseAbsentNames] = useState<string[]>([]);
+  const [showPulseDetails, setShowPulseDetails] = useState(false);
   const [isLightTheme, setIsLightTheme] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem("studentInfo") || "{}");
@@ -134,14 +142,61 @@ const { socket, connected } = useSocket(
     socket.on('mood-update', (responses: { understood: number; okay: number; confused: number }) => {
       setMoodResponses(responses);
     });
+    const clearPulseCheckTimer = () => {
+      if (pulseCheckTimerRef.current !== null) {
+        window.clearInterval(pulseCheckTimerRef.current);
+        pulseCheckTimerRef.current = null;
+      }
+    };
+
     socket.on('mood-ended', (summary?: { understood: number; okay: number; confused: number }) => {
       setMoodCheckActive(false);
       setMoodResponses(summary || { understood: 0, okay: 0, confused: 0 });
       setStudentMoodSubmitted(false);
       toast.success('Mood check ended');
     });
+    socket.on('pulse-check-start', () => {
+      setPulseCheckActive(true);
+      setPulseCheckResponse(null);
+      setPulseCheckCounts({ present: 0, absent: 0 });
+      setPulsePresentNames([]);
+      setPulseAbsentNames([]);
+      setShowPulseDetails(false);
+      if (role === 'student') {
+        setPulseCheckTimer(60);
+        clearPulseCheckTimer();
+        pulseCheckTimerRef.current = window.setInterval(() => {
+          setPulseCheckTimer((prev) => {
+            if (prev <= 1) {
+              clearPulseCheckTimer();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+      toast('Focus check started. Please respond.');
+    });
+    socket.on('pulse-check-update', (payload: { present: number; absent: number; presentStudents?: string[]; absentStudents?: string[] }) => {
+      setPulseCheckCounts({ present: payload.present, absent: payload.absent });
+      setPulsePresentNames(payload.presentStudents || []);
+      setPulseAbsentNames(payload.absentStudents || []);
+    });
+    socket.on('pulse-check-ended', (payload: { present: number; absent: number; presentStudents?: string[]; absentStudents?: string[] }) => {
+      clearPulseCheckTimer();
+      setPulseCheckActive(false);
+      setPulseCheckCounts({ present: payload.present, absent: payload.absent });
+      setPulsePresentNames(payload.presentStudents || []);
+      setPulseAbsentNames(payload.absentStudents || []);
+      if (role === 'student') {
+        setPulseCheckTimer(0);
+      }
+      setPulseCheckResponse(prev => prev || 'absent');
+      toast.success('Focus check ended');
+    });
 
     return () => {
+      clearPulseCheckTimer();
       socket.off('load-questions');
       socket.off('new-question');
       socket.off('new-answer');
@@ -154,6 +209,9 @@ const { socket, connected } = useSocket(
       socket.off('mood-started');
       socket.off('mood-update');
       socket.off('mood-ended');
+      socket.off('pulse-check-start');
+      socket.off('pulse-check-update');
+      socket.off('pulse-check-ended');
     };
   }, [socket, role, navigate]);
 
@@ -297,12 +355,12 @@ const { socket, connected } = useSocket(
   };
 
   // Update handleStudentLeave in Session.tsx:
-const handleStudentLeave = () => {
-  if (socket && role === "student") {
-    socket.emit('student-leave', { sessionCode });
-  }
-  navigate("/student");
-};
+  const handleStudentLeave = () => {
+    if (socket && role === "student") {
+      socket.emit('student-leave', { sessionCode });
+    }
+    navigate(`/student-summary/${sessionCode}`);
+  };
 
   const handleEndSession = async () => {
     if (socket && role === "teacher") {
@@ -349,6 +407,31 @@ const handleStudentLeave = () => {
       socket.emit('end-mood-check', { sessionCode });
     }
   };
+
+  const handleStartPulseCheck = () => {
+    if (socket && role === "teacher") {
+      socket.emit('start-pulse-check', { sessionCode });
+    }
+  };
+
+  const handleEndPulseCheck = () => {
+    if (socket && role === "teacher") {
+      socket.emit('end-pulse-check', { sessionCode });
+    }
+  };
+
+  const handleSubmitPulseCheck = (present: boolean) => {
+    if (!socket || role !== 'student' || pulseCheckResponse) return;
+    const userId = userInfo.email || name;
+    socket.emit('pulse-check-response', { sessionCode, userId, present });
+    setPulseCheckResponse(present ? 'present' : 'absent');
+    toast.success('Focus check response submitted');
+  };
+
+  useEffect(() => {
+    if (role !== 'student' || !pulseCheckActive || pulseCheckTimer !== 0 || pulseCheckResponse) return;
+    handleSubmitPulseCheck(false);
+  }, [role, pulseCheckActive, pulseCheckTimer, pulseCheckResponse]);
 
   const handleSubmitMood = (mood: 'understood' | 'okay' | 'confused') => {
     if (socket && !studentMoodSubmitted) {
@@ -458,6 +541,15 @@ const handleStudentLeave = () => {
                 >
                   {isPaused ? "Resume" : "Pause"}
                 </button>
+                {pulseCheckActive ? (
+                  <button className="btn-secondary" onClick={handleEndPulseCheck}>
+                    End Focus Check
+                  </button>
+                ) : (
+                  <button className="btn-info" onClick={handleStartPulseCheck}>
+                    🎯 Focus Check
+                  </button>
+                )}
                 {moodCheckActive ? (
                   <button className="btn-secondary" onClick={handleEndMoodCheck}>
                     End Mood Check
@@ -550,6 +642,28 @@ const handleStudentLeave = () => {
             </div>
           )}
 
+          {role === "student" && pulseCheckActive && (
+            <div className="mood-check-container">
+              <div className="mood-prompt">Focus check — are you present?</div>
+              <div className="mood-subtitle">
+                Respond within {pulseCheckTimer} second{pulseCheckTimer === 1 ? '' : 's'} or you will be marked absent.
+              </div>
+              {pulseCheckResponse ? (
+                <div className="mood-buttons">
+                  <div className="pulse-check-response">You responded: {pulseCheckResponse === 'present' ? 'Present ✅' : 'Not Present ❌'}</div>
+                </div>
+              ) : (
+                <div className="mood-buttons">
+                  <button
+                    className="mood-btn understood"
+                    onClick={() => handleSubmitPulseCheck(true)}
+                  >
+                    ✅ Present
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {role === "student" && moodCheckActive && (
             <div className="mood-check-container">
               <div className="mood-prompt">How are you feeling about the content?</div>
@@ -575,6 +689,49 @@ const handleStudentLeave = () => {
                 >
                   👎 Confused
                 </button>
+              </div>
+            </div>
+          )}
+          {role === "teacher" && pulseCheckActive && (
+            <div className="mood-display-teacher">
+              <div className="mood-header">Live Focus Check</div>
+              <div className="mood-stats">
+                <div className={`mood-stat ${pulseCheckCounts.present >= pulseCheckCounts.absent ? 'highlighted' : ''}`}>
+                  ✅ Present: {pulseCheckCounts.present}
+                </div>
+                <div className={`mood-stat ${pulseCheckCounts.absent > pulseCheckCounts.present ? 'highlighted' : ''}`}>
+                  ❌ Not Present: {pulseCheckCounts.absent}
+                </div>
+              </div>
+              <div className="pulse-view-button">
+                <button className="btn-secondary" onClick={() => setShowPulseDetails(true)}>
+                  View participant list
+                </button>
+              </div>  
+            </div>
+          )}
+          {showPulseDetails && (
+            <div className="pulse-modal-overlay">
+              <div className="pulse-modal-card">
+                <div className="pulse-modal-header">
+                  <div>
+                    <h3>Focus Check Participants</h3>
+                    <p>Present and not present student names.</p>
+                  </div>
+                  <button className="btn-secondary" onClick={() => setShowPulseDetails(false)}>Close</button>
+                </div>
+                <div className="pulse-modal-section">
+                  <strong>Present ({pulsePresentNames.length})</strong>
+                  <ul className="pulse-modal-list">
+                    {pulsePresentNames.length > 0 ? pulsePresentNames.map(name => <li key={`present-${name}`} className="pulse-present-item">{name}</li>) : <li>No one yet</li>}
+                  </ul>
+                </div>
+                <div className="pulse-modal-section">
+                  <strong>Not Present ({pulseAbsentNames.length})</strong>
+                  <ul className="pulse-modal-list">
+                    {pulseAbsentNames.length > 0 ? pulseAbsentNames.map(name => <li key={`absent-${name}`} className="pulse-absent-item">{name}</li>) : <li>No one yet</li>}
+                  </ul>
+                </div>
               </div>
             </div>
           )}

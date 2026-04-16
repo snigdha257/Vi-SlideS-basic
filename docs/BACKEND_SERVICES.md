@@ -34,11 +34,14 @@ Backend/src/
 
 ## 🚀 Core Responsibilities
 
-* Authentication (JWT + Google)
-* Session management (create/join/end)
-* Real-time Q&A (Socket.IO)
-* AI-powered answers
-* QR-based question submission
+* **Enhanced Authentication** (JWT + Google OAuth with role-based routing)
+* **Session management** (create/join/end with pause/resume)
+* **Real-time Q&A** (Socket.IO with enhanced events)
+* **AI-powered answers** (Grammar checking + teaching responses)
+* **QR-based question submission**
+* **Focus Check System** (Timer-based attendance verification)
+* **Mood Check System** (Student sentiment tracking)
+* **Session Analytics** (Comprehensive data collection)
 
 ---
 
@@ -64,11 +67,17 @@ Handles live classroom interaction.
 
 **Key events:**
 
-* `new-question`
-* `new-answer`
-* `ai-answer`
-* `update-students`
-* `session-ended`
+* `new-question` - New question submitted
+* `new-answer` - Teacher manual answer
+* `ai-answer` - AI-generated response
+* `update-students` - Student list updates
+* `session-ended` - Session termination
+* `pulse-check-start` - Focus check initiated
+* `pulse-check-update` - Focus check results
+* `pulse-check-end` - Focus check completed
+* `start-mood-check` - Mood check initiated
+* `mood-update` - Mood check results
+* `mood-check-end` - Mood check completed
 
 ---
 
@@ -121,6 +130,7 @@ Handles live classroom interaction.
 ## 🤖 AI Service
 
 * Uses Groq API
+* Checks grammatical errors in questions
 * Generates short teaching answers
 * Response saved and sent in real-time
 
@@ -136,37 +146,48 @@ Handles live classroom interaction.
 
 ## 🌐 API Routes
 
-**Auth**
+**Auth (Enhanced)**
 
-* `/register`
-* `/login`
-* `/profile`
+* `/register` - User registration with role selection
+* `/login` - Email/password authentication
+* `/google-login` - Google OAuth integration with role-based routing
+* `/profile` - User profile management
 
 **Session**
 
-* `/create-session`
-* `/session/:code`
-* `/session/:code/end`
+* `/create-session` - Create new session (teacher only)
+* `/session/:code` - Fetch session details
+* `/session/:code/end` - End session
+* `/session/:code/pause` - Pause/Resume session
 
-**AI**
+**AI (Enhanced)**
 
-* `/ask-ai`
+* `/ask-ai` - Generate AI-powered answers
+* `/grammar-check` - Question grammar validation
 
 **QR**
 
-* `/ask/:code`
+* `/ask/:code` - Public question submission via QR
+
+**New Features**
+
+* `/pulse-check/start` - Initiate focus check
+* `/pulse-check/response` - Submit focus check response
+* `/mood-check/start` - Initiate mood check
+* `/mood-check/response` - Submit mood check response
 
 ---
 
-## ⚡ System Flow
+## ⚡ System Flow (Enhanced)
 
 ```id="3h4b2k"
 Teacher creates session
-→ Students join (code / QR)
-→ Questions submitted
-→ Teacher answers or uses AI
-→ Updates sent in real-time
-→ Session ends → summary generated
+Students join (code / QR / Google Auth)
+Real-time Q&A interaction
+Focus & Mood checks (optional)
+Teacher answers (manual/AI with grammar check)
+Updates sent in real-time
+Session ends -> comprehensive summary generated
 ```
 
 ---
@@ -187,11 +208,13 @@ Teacher creates session
 
 ---
 
-## 🧠 Summary
+## Summary
 
 Backend is designed to be:
 
-* real-time (Socket.IO)
-* scalable (MongoDB)
-* secure (JWT)
-* extensible (AI + QR features)
+* **real-time** (Socket.IO with enhanced events)
+* **scalable** (MongoDB with optimized indexing)
+* **secure** (JWT + Google OAuth integration)
+* **extensible** (AI + QR + Focus/Mood check features)
+* **intelligent** (Grammar checking + smart authentication)
+* **analytics-driven** (Comprehensive session data collection)

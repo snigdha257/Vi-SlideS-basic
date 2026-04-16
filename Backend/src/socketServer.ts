@@ -14,11 +14,22 @@ interface Question {
   aiAnswer?: string;//added aiAnswer and aiAnsweredAt to Question interface
   aiAnsweredAt?: string;
 }
+interface PulseCheckState {
+  active: boolean;
+  responses: {
+    present: number;
+    absent: number;
+  };
+  respondedStudents: string[];
+  responseStatus: Record<string, 'present' | 'absent'>;
+}
+
 interface ActiveSession {
   [sessionCode: string]: {
     questions: Question[];
     students: string[];
     isPaused?: boolean;
+    pulseCheck: PulseCheckState;
   };
 }
 
@@ -71,7 +82,13 @@ export const createSocketServer = (httpServer: HTTPServer) => {
       activeSessions[sessionCode as string] = {
         questions: [],
         students: [],
-        isPaused: false
+        isPaused: false,
+        pulseCheck: {
+          active: false,
+          responses: { present: 0, absent: 0 },
+          respondedStudents: [],
+          responseStatus: {}
+        }
       };
     }
 
@@ -156,6 +173,11 @@ export const createSocketServer = (httpServer: HTTPServer) => {
     // Send existing questions to new user
     socket.emit('load-questions', activeSessions[sessionCode as string].questions);
     socket.emit('session-paused-toggled', activeSessions[sessionCode as string].isPaused);
+
+    if (activeSessions[sessionCode as string].pulseCheck.active) {
+      socket.emit('pulse-check-start');
+      socket.emit('pulse-check-update', activeSessions[sessionCode as string].pulseCheck.responses);
+    }
 
     if (currentMoodState?.active) {
       socket.emit('mood-started');
@@ -248,6 +270,74 @@ export const createSocketServer = (httpServer: HTTPServer) => {
         console.error("Mood end error:", err);
       }
     });
+
+    const buildPulsePayload = (sessionCode: string, includeMissingAsAbsent = false) => {
+      const pulse = activeSessions[sessionCode].pulseCheck;
+      const presentStudents = Object.entries(pulse.responseStatus)
+        .filter(([, status]) => status === 'present')
+        .map(([studentName]) => studentName);
+      const absentStudents = Object.entries(pulse.responseStatus)
+        .filter(([, status]) => status === 'absent')
+        .map(([studentName]) => studentName);
+
+      let inferredAbsent: string[] = [];
+      if (includeMissingAsAbsent) {
+        const missingStudents = activeSessions[sessionCode].students.filter(student =>
+          !pulse.respondedStudents.includes(student)
+        );
+        inferredAbsent = missingStudents.filter(student => !absentStudents.includes(student));
+      }
+
+      return {
+        present: pulse.responses.present,
+        absent: pulse.responses.absent + inferredAbsent.length,
+        presentStudents,
+        absentStudents: [...absentStudents, ...inferredAbsent]
+      };
+    };
+
+    socket.on('start-pulse-check', (data: { sessionCode: string }) => {
+      if (role === 'teacher' && activeSessions[data.sessionCode]) {
+        const pulse = activeSessions[data.sessionCode].pulseCheck;
+        pulse.active = true;
+        pulse.responses = { present: 0, absent: 0 };
+        pulse.respondedStudents = [];
+        pulse.responseStatus = {};
+
+        io.to(data.sessionCode).emit('pulse-check-start');
+        io.to(data.sessionCode).emit('pulse-check-update', buildPulsePayload(data.sessionCode, false));
+        console.log(`Pulse check started for session ${data.sessionCode}`);
+      }
+    });
+
+    socket.on('pulse-check-response', (data: { userId: string; sessionCode: string; present: boolean }) => {
+      if (!activeSessions[data.sessionCode]) return;
+      const pulse = activeSessions[data.sessionCode].pulseCheck;
+      if (!pulse.active) return;
+      const studentName = (userName as string) || data.userId;
+      if (!studentName || pulse.respondedStudents.includes(studentName)) return;
+
+      pulse.respondedStudents.push(studentName);
+      pulse.responseStatus[studentName] = data.present ? 'present' : 'absent';
+      if (data.present) {
+        pulse.responses.present += 1;
+      } else {
+        pulse.responses.absent += 1;
+      }
+
+      io.to(data.sessionCode).emit('pulse-check-update', buildPulsePayload(data.sessionCode, false));
+      console.log(`Pulse check response from ${studentName} in ${data.sessionCode}: present=${data.present}`);
+    });
+
+    socket.on('end-pulse-check', (data: { sessionCode: string }) => {
+      if (role === 'teacher' && activeSessions[data.sessionCode]) {
+        const pulse = activeSessions[data.sessionCode].pulseCheck;
+        pulse.active = false;
+        io.to(data.sessionCode).emit('pulse-check-ended', buildPulsePayload(data.sessionCode, true));
+        console.log(`Pulse check ended for session ${data.sessionCode}`);
+      }
+    });
+
     // Handle new question
     socket.on('send-question', async (data: { sessionCode: string; question: string }) => {
       if (!activeSessions[data.sessionCode]) return;
