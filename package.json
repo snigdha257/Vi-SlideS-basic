@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "groq-sdk": "^1.1.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
+    "react-datepicker": "^9.1.0",
+    "react-hot-toast": "^2.6.0"
+  }
+}

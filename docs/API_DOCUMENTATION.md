@@ -56,9 +56,13 @@ Authorization: Bearer <JWT_TOKEN>
 
 ```json
 {
-  "token": "google_id_token"
+  "token": "google_id_token",
+  "role": "teacher|student"
 }
 ```
+
+* **Role-based routing** - Automatically redirects to appropriate dashboard
+* **New user detection** - Shows role selector for first-time users
 
 ---
 
@@ -163,6 +167,63 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+## Focus Check APIs 
+
+### Start Focus Check (Teacher) 
+
+**POST** `/api/session/:code/focus-check/start`
+
+* Broadcast via `pulse-check-start`
+
+### Submit Focus Check Response (Student)
+
+**POST** `/api/session/:code/focus-check/response`
+
+```json
+{
+  "userId": "student_email",
+  "present": true
+}
+```
+
+* Broadcast via `pulse-check-update`
+
+### End Focus Check (Teacher)
+
+**POST** `/api/session/:code/focus-check/end`
+
+* Broadcast via `pulse-check-end`
+
+---
+
+## Mood Check APIs
+
+### Start Mood Check (Teacher)
+
+**POST** `/api/session/:code/mood-check/start`
+
+* Broadcast via `start-mood-check`
+
+### Submit Mood Check Response (Student)
+
+**POST** `/api/session/:code/mood-check/response`
+
+```json
+{
+  "mood": "understood|okay|confused"
+}
+```
+
+* Broadcast via `mood-update`
+
+### End Mood Check (Teacher)
+
+**POST** `/api/session/:code/mood-check/end`
+
+* Broadcast via `mood-check-end`
+
+---
+
 ## ⚡ Socket.IO Events
 
 ### Client → Server
@@ -172,6 +233,8 @@ Authorization: Bearer <JWT_TOKEN>
 * toggle-pause
 * end-session
 * student-leave
+* **pulse-check-response** - Submit focus check response
+* **mood-check-response** - Submit mood check response
 
 ### Server → Client
 
@@ -182,6 +245,12 @@ Authorization: Bearer <JWT_TOKEN>
 * update-students
 * session-paused-toggled
 * session-ended
+* **pulse-check-start** - Focus check initiated
+* **pulse-check-update** - Focus check results update
+* **pulse-check-end** - Focus check completed
+* **start-mood-check** - Mood check initiated
+* **mood-update** - Mood check results update
+* **mood-check-end** - Mood check completed
 
 ---
 
@@ -201,15 +270,17 @@ Authorization: Bearer <JWT_TOKEN>
 
 * No rate limiting yet
 * CORS allows localhost + private IPs
-* API version: v1
+
+* **Enhanced with Focus/Mood check features**
 
 ---
 
-## 🔄 Quick Flow
+## 🔄 Quick Flow (Enhanced)
 
-1. Teacher creates session
-2. Students send questions (Socket)
-3. Teacher answers / uses AI
-4. Updates broadcast in real-time
-5. Session ends
-
+1. **Teacher creates session** (Google Auth available)
+2. **Students join** (Code/QR/Google Auth)
+3. **Real-time Q&A interaction**
+4. **Focus & Mood checks** (Teacher-controlled)
+5. **Teacher answers** (Manual/AI with grammar check)
+6. **Updates broadcast** in real-time
+7. **Session ends** with comprehensive analytics

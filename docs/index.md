@@ -21,14 +21,23 @@ cd Vi-SlideS-basic
 - **[⚙️ Backend Services](BACKEND_SERVICES.md)** - Server-side code structure
 - **[🖥️ Frontend Components](FRONTEND_COMPONENTS.md)** - React components and UI
 
-## ✨ Key Features
 
+## Key Features
+
+### Core Classroom Features
 - **Real-time Q&A** - Live question submission and responses
 - **AI Assistance** - Groq API integration for automated answers
 - **QR Code Access** - Public question form via QR scanning
 - **Live Roster** - Real-time student attendance tracking
 - **Session Analytics** - PDF export of session summaries
 - **Google OAuth** - Secure authentication for teachers and students
+
+### Enhanced Features 
+- **Focus Check System** - Real-time attendance verification with timer-based presence tracking
+- **Mood Check System** - Student sentiment tracking (Understood/Okay/Confused) with live analytics
+- **Theme Toggle** - Professional Dark/Light mode with persistent preferences
+- **Enhanced Google Auth** - Role-based authentication with smart redirection
+- **Professional UI** - Modern design with animations, gradients, and improved accessibility
 
 ## 🛠️ Tech Stack
 
@@ -57,15 +66,20 @@ cd Vi-SlideS-basic
 
 ## 📊 Project Status
 
-- ✅ Core Q&A functionality
-- ✅ AI integration (Groq API)
-- ✅ Real-time communication
-- ✅ Authentication system
-- ✅ Session management
-- ✅ PDF export
-- 🚧 Mobile app (planned)
-- 🚧 Advanced analytics (planned)
+- Core Q&A functionality
+- AI integration (Groq API)
+- Real-time communication
+- Authentication system
+- Session management
+- PDF export
+- Focus Check system
+- Mood Check system
+- Theme Toggle
+- Enhanced Google Auth
+- Professional UI redesign
+- Mobile app (planned)
+- Advanced analytics (planned)
 
 ---
 
-**Version:** 1.0.0 | **Last Updated:** March 29, 2026 | **Maintained by:** Vi-SlideS Team
+**Version:** 2.0.0 | **Last Updated:** April 16, 2026 | **Maintained by:** Vi-SlideS Team
